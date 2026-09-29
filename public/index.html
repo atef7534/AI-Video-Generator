@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10110f" />
+    <meta
+      name="description"
+      content="PromptForge is a creative video workshop powered by MoneyPrinterTurbo."
+    />
+    <title>PromptForge — AI Video Workshop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient ambient--one" aria-hidden="true"></div>
+    <div class="ambient ambient--two" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="PromptForge home">
+        <span class="brand-mark" aria-hidden="true">
+          <i></i><i></i><i></i>
+        </span>
+        <span>Prompt<span class="brand-light">Forge</span></span>
+      </a>
+
+      <div class="header-tools">
+        <div
+          class="connection"
+          id="connection"
+          data-state="checking"
+          role="status"
+        >
+          <span class="connection-dot" aria-hidden="true"></span>
+          <span id="connectionText">Checking engine…</span>
+        </div>
+
+        <button
+          class="theme-toggle"
+          id="themeToggle"
+          type="button"
+          aria-label="Switch to light theme"
+          title="Switch theme"
+        >
+          <span class="theme-icon" aria-hidden="true">◐</span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="heroTitle">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="eyebrow-line"></span> AI VIDEO WORKSHOP
+          </p>
+          <h1 id="heroTitle">
+            Give it a thought.<br /><span>Get a film.</span>
+          </h1>
+          <p class="hero-description">
+            Describe the video you want in plain language. PromptForge turns
+            your brief into a finished video through your MoneyPrinterTurbo
+            engine.
+          </p>
+        </div>
+
+        <div class="hero-index" aria-hidden="true">
+          <span>STUDIO 01</span>
+          <span class="index-rule"></span>
+          <span>IDEA → IMAGE</span>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Video creation workspace">
+        <div class="section-marker">
+          <span>01</span>
+          <span class="marker-line"></span>
+          <span>THE WORKSPACE</span>
+        </div>
+
+        <form class="prompt-form" id="promptForm">
+          <div class="editor">
+            <div class="editor-topline">
+              <label for="prompt" class="field-label">YOUR BRIEF</label>
+              <div class="editor-meta">
+                <span class="char-count" id="charCount">0 / 1200</span>
+                <button class="text-button" id="clearPrompt" type="button">
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              id="prompt"
+              name="prompt"
+              maxlength="1200"
+              rows="5"
+              aria-describedby="promptHelp charCount"
+              placeholder="A cinematic 45-second explainer showing how a JavaScript Promise works. Use clean 3D visuals, energetic pacing, a friendly English voice, and clear subtitles…"
+              required
+            ></textarea>
+
+            <p class="sr-only" id="promptHelp">
+              Describe the video you want to generate. Maximum 1200 characters.
+            </p>
+
+            <div class="editor-foot">
+              <span class="editor-hint"
+                ><span class="hint-spark">✳</span> A good brief makes a better
+                film.</span
+              >
+              <span class="editor-hint editor-hint--right"
+                >⌘ / CTRL + ENTER TO GENERATE</span
+              >
+            </div>
+          </div>
+
+          <div class="suggestions" aria-label="Prompt starters">
+            <span class="suggestion-label">START WITH</span>
+            <button
+              type="button"
+              class="chip"
+              data-prompt="Create an educational video that explains"
+            >
+              Education <span>↗</span>
+            </button>
+            <button
+              type="button"
+              class="chip"
+              data-prompt="Create a cinematic short film about"
+            >
+              Cinematic <span>↗</span>
+            </button>
+            <button
+              type="button"
+              class="chip"
+              data-prompt="Create a visually clear tech explainer about"
+            >
+              Tech <span>↗</span>
+            </button>
+            <button
+              type="button"
+              class="chip"
+              data-prompt="Tell a memorable story about"
+            >
+              Storytelling <span>↗</span>
+            </button>
+            <button
+              type="button"
+              class="chip"
+              data-prompt="Create a punchy social media video about"
+            >
+              Social Media <span>↗</span>
+            </button>
+          </div>
+
+          <div class="options">
+            <fieldset class="option-group option-group--format">
+              <legend class="field-label">FORMAT</legend>
+              <div
+                class="segmented"
+                role="radiogroup"
+                aria-label="Video format"
+              >
+                <label class="segment">
+                  <input type="radio" name="aspect" value="9:16" checked />
+                  <span
+                    ><i class="format-icon format-icon--portrait"></i>Portrait
+                    <small>9:16</small></span
+                  >
+                </label>
+                <label class="segment">
+                  <input type="radio" name="aspect" value="16:9" />
+                  <span
+                    ><i class="format-icon format-icon--landscape"></i>Landscape
+                    <small>16:9</small></span
+                  >
+                </label>
+                <label class="segment">
+                  <input type="radio" name="aspect" value="1:1" />
+                  <span
+                    ><i class="format-icon format-icon--square"></i>Square
+                    <small>1:1</small></span
+                  >
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="option-group language-group">
+              <label for="language" class="field-label">LANGUAGE</label>
+              <div class="select-wrap">
+                <select id="language" name="language">
+                  <option value="">Auto detect</option>
+                  <option value="en">English</option>
+                  <option value="ar">Arabic</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                </select>
+                <span aria-hidden="true">⌄</span>
+              </div>
+            </div>
+
+            <div class="option-group subtitles-group">
+              <span class="field-label">SUBTITLES</span>
+              <label class="switch">
+                <input id="subtitles" type="checkbox" checked />
+                <span class="switch-track" aria-hidden="true"></span>
+                <span class="switch-label" id="subtitleState">On</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <p class="form-note">
+              One brief. One finished film.<br /><span
+                >No timeline required.</span
+              >
+            </p>
+            <button class="generate-button" id="generateButton" type="submit">
+              <span class="generate-star" aria-hidden="true">✦</span>
+              <span>Generate video</span>
+              <span class="button-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="render-panel" id="renderPanel" aria-live="polite" hidden>
+        <div class="section-marker">
+          <span>02</span>
+          <span class="marker-line"></span>
+          <span>THE RENDER</span>
+        </div>
+
+        <div class="render-content">
+          <div class="render-heading">
+            <div>
+              <p class="eyebrow" id="renderEyebrow">GENERATION</p>
+              <h2 id="renderTitle">Building your film</h2>
+            </div>
+            <span class="status-tag" id="statusTag">QUEUED</span>
+          </div>
+
+          <div class="progress-track" aria-label="Generation progress">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+
+          <div class="render-foot">
+            <p id="renderMessage">Sending your brief to the engine…</p>
+            <span id="progressLabel">—</span>
+          </div>
+
+          <div class="error-message" id="errorMessage" hidden>
+            <span class="error-mark" aria-hidden="true">!</span>
+            <div>
+              <h3>Something stopped the render</h3>
+              <p id="errorDetail">
+                MoneyPrinterTurbo could not complete this generation. Check the
+                engine console and your configured providers.
+              </p>
+            </div>
+          </div>
+
+          <div class="result" id="result" hidden>
+            <div class="result-heading">
+              <div>
+                <p class="eyebrow">YOUR VIDEO</p>
+                <h2>Ready to play.</h2>
+              </div>
+              <button class="copy-task" id="copyTask" type="button">
+                <span aria-hidden="true">▣</span> Copy task ID
+              </button>
+            </div>
+
+            <div class="video-frame" id="videoFrame">
+              <video id="videoPlayer" controls playsinline preload="metadata">
+                Your browser does not support HTML video.
+              </video>
+            </div>
+
+            <div class="result-foot">
+              <span class="task-id" id="taskIdLabel"></span>
+              <a class="download-button" id="downloadButton" href="#" download>
+                Download MP4 <span aria-hidden="true">↓</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <span>IDEAS IN. MOTION OUT.</span>
+        <span>BUILT FOR THE MAKING OF IT.</span>
+      </footer>
+    </main>
+  </body>
+</html>
