@@ -438,15 +438,6 @@ app.get('/api/tasks/:taskId', async (req, res) => {
   }
 });
 
-// Temporary test route: displays the last successfully generated video without creating a new task.
-const TEST_TASK_ID = '9dbe5c99-12f9-42e7-b2c6-b4d264a83fce';
-
-app.get('/api/test-video', (_req, res) => {
-  res.json({
-    taskId: TEST_TASK_ID,
-    videoUrl: '/api/tasks/' + TEST_TASK_ID + '/video'
-  });
-});
 
 app.post('/api/generate-image', async (req, res) => {
   const prompt = typeof req.body?.prompt === 'string'
@@ -587,6 +578,18 @@ app.get('/api/tasks/:taskId/video', async (req, res) => {
     }
 
     const task = getTaskObject(taskBody);
+    const taskStatus = normalizeStatus(task.status || task.state);
+
+    if (taskStatus !== 'COMPLETE') {
+      const error = new Error(
+        taskStatus === 'ERROR'
+          ? (getTaskError(task) || 'The generation task failed.')
+          : 'The video is not ready yet.'
+      );
+      error.status = taskStatus === 'ERROR' ? 409 : 409;
+      throw error;
+    }
+
     // MoneyPrinterTurbo v1.3.7 may finish without exposing the output path in
     // the task JSON. Fall back to its deterministic final MP4 location.
     const videoReference = findVideoReference(task) ||
