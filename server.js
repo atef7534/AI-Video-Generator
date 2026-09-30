@@ -43,7 +43,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_M
     });
   } catch (error) {
     if (error.name === 'AbortError') {
-      const timeoutError = new Error('MoneyPrinterTurbo did not respond in time.');
+      const timeoutError = new Error('The upstream AI service did not respond in time.');
       timeoutError.status = 504;
       throw timeoutError;
     }
@@ -527,7 +527,7 @@ app.post('/api/generate-image', async (req, res) => {
 
   async function requestImage(targetWidth, targetHeight) {
     const imageUrl =
-      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${encodeURIComponent(CLOUDFLARE_IMAGE_MODEL)}`;
+      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${CLOUDFLARE_IMAGE_MODEL}`;
 
     const response = await fetchWithTimeout(
       imageUrl,
