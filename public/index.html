@@ -160,6 +160,20 @@
           </div>
 
           <div class="options">
+            <fieldset class="option-group option-group--mode">
+              <legend class="field-label">CREATE</legend>
+              <div class="segmented" role="radiogroup" aria-label="Creation type">
+                <label class="segment">
+                  <input type="radio" name="creationType" value="video" checked />
+                  <span>Video <small>MP4</small></span>
+                </label>
+                <label class="segment">
+                  <input type="radio" name="creationType" value="image" />
+                  <span>Image <small>PNG / JPG</small></span>
+                </label>
+              </div>
+            </fieldset>
+
             <fieldset class="option-group option-group--format">
               <legend class="field-label">FORMAT</legend>
               <div
@@ -269,8 +283,8 @@
           <div class="result" id="result" hidden>
             <div class="result-heading">
               <div>
-                <p class="eyebrow">YOUR VIDEO</p>
-                <h2>Ready to play.</h2>
+                <p class="eyebrow" id="resultEyebrow">YOUR VIDEO</p>
+                <h2 id="resultTitle">Ready to play.</h2>
               </div>
               <button class="copy-task" id="copyTask" type="button">
                 <span aria-hidden="true">▣</span> Copy task ID
@@ -281,12 +295,13 @@
               <video id="videoPlayer" controls playsinline preload="metadata">
                 Your browser does not support HTML video.
               </video>
+              <img id="imageResult" alt="Generated image" hidden />
             </div>
 
             <div class="result-foot">
               <span class="task-id" id="taskIdLabel"></span>
               <a class="download-button" id="downloadButton" href="#" download>
-                Download MP4 <span aria-hidden="true">↓</span>
+                Download <span id="downloadLabel">MP4</span> <span aria-hidden="true">↓</span>
               </a>
             </div>
           </div>
