@@ -468,9 +468,7 @@ async function generateVideo(event) {
   elements.renderPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   try {
-    // BUG FIX: this used to check only `=== 'image'`, so 4K Wallpaper mode fell
-    // through to the video endpoint and generated a video instead of an image.
-    if (isImageType()) {
+    if (selectedCreationType() === 'image') {
       await generateImage();
       return;
     }
