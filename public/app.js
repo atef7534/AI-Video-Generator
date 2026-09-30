@@ -11,6 +11,7 @@ const elements = {
   connectionText: document.getElementById('connectionText'),
   promptForm: document.getElementById('promptForm'),
   prompt: document.getElementById('prompt'),
+  creationType: document.querySelectorAll('input[name="creationType"]'),
   charCount: document.getElementById('charCount'),
   clearPrompt: document.getElementById('clearPrompt'),
   generateButton: document.getElementById('generateButton'),
@@ -31,7 +32,11 @@ const elements = {
   videoFrame: document.getElementById('videoFrame'),
   downloadButton: document.getElementById('downloadButton'),
   taskIdLabel: document.getElementById('taskIdLabel'),
-  copyTask: document.getElementById('copyTask')
+  copyTask: document.getElementById('copyTask'),
+  imageResult: document.getElementById('imageResult'),
+  resultEyebrow: document.getElementById('resultEyebrow'),
+  resultTitle: document.getElementById('resultTitle'),
+  downloadLabel: document.getElementById('downloadLabel')
 };
 
 let activeTaskId = '';
@@ -114,6 +119,19 @@ function selectedAspect() {
   return document.querySelector('input[name="aspect"]:checked')?.value || '9:16';
 }
 
+function selectedCreationType() {
+  return document.querySelector('input[name="creationType"]:checked')?.value || 'video';
+}
+
+function updateCreationUI() {
+  const isImage = selectedCreationType() === 'image';
+  const generateLabel = elements.generateButton.querySelector('span:nth-child(2)');
+
+  generateLabel.textContent = isImage ? 'Generate image' : 'Generate video';
+  document.querySelector('.subtitles-group').hidden = isImage;
+  document.querySelector('.language-group').hidden = isImage;
+}
+
 async function apiRequest(url, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -190,7 +208,30 @@ function showError(message) {
   elements.generateButton.disabled = false;
 }
 
+function showImageComplete() {
+  elements.statusTag.textContent = 'COMPLETE';
+  elements.statusTag.dataset.state = 'COMPLETE';
+  elements.renderTitle.textContent = 'Your image is ready.';
+  elements.renderEyebrow.textContent = 'IMAGE COMPLETE';
+  elements.renderMessage.textContent = 'Your image is ready.';
+  elements.progressFill.classList.remove('is-indeterminate');
+  elements.progressFill.style.width = '100%';
+  elements.progressLabel.textContent = '100%';
+  elements.result.hidden = false;
+  elements.videoPlayer.hidden = true;
+  elements.imageResult.hidden = false;
+  elements.resultEyebrow.textContent = 'YOUR IMAGE';
+  elements.resultTitle.textContent = 'Ready to view.';
+  elements.downloadLabel.textContent = 'Image';
+  elements.taskIdLabel.textContent = 'IMAGE / GENERATED';
+}
+
 function showComplete(taskId) {
+  elements.videoPlayer.hidden = false;
+  elements.imageResult.hidden = true;
+  elements.resultEyebrow.textContent = 'YOUR VIDEO';
+  elements.resultTitle.textContent = 'Ready to play.';
+  elements.downloadLabel.textContent = 'MP4';
   elements.statusTag.textContent = 'COMPLETE';
   elements.statusTag.dataset.state = 'COMPLETE';
   elements.renderTitle.textContent = 'Your film is ready.';
@@ -273,6 +314,26 @@ async function pollTask(taskId, startedAt) {
   }
 }
 
+async function generateImage() {
+  elements.statusTag.textContent = 'PROCESSING';
+  elements.statusTag.dataset.state = 'PROCESSING';
+  elements.renderEyebrow.textContent = 'IMAGE GENERATION';
+  elements.renderTitle.textContent = 'Creating your image';
+  elements.renderMessage.textContent = 'Sending your prompt to the image engine…';
+
+  const response = await apiRequest('/api/generate-image', {
+    method: 'POST',
+    body: JSON.stringify({
+      prompt: elements.prompt.value.trim(),
+      aspect: selectedAspect()
+    })
+  });
+
+  const blob = await response.blob();
+  elements.imageResult.src = URL.createObjectURL(blob);
+  showImageComplete();
+}
+
 async function generateVideo(event) {
   event?.preventDefault();
 
@@ -313,6 +374,12 @@ async function generateVideo(event) {
   elements.renderPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   try {
+    if (selectedCreationType() === 'image') {
+      await generateImage();
+      elements.generateButton.disabled = false;
+      return;
+    }
+
     const response = await apiRequest('/api/generate', {
       method: 'POST',
       body: JSON.stringify({
@@ -346,6 +413,10 @@ function initPromptControls() {
 
   document.querySelectorAll('.chip').forEach((chip) => {
     chip.addEventListener('click', () => addPromptStarter(chip.dataset.prompt));
+  });
+
+  elements.creationType.forEach((input) => {
+    input.addEventListener('change', updateCreationUI);
   });
 
   elements.subtitles.addEventListener('change', () => {
@@ -397,6 +468,7 @@ function initResultControls() {
 initTheme();
 initPromptControls();
 initResultControls();
+updateCreationUI();
 updateCharacterCount();
 checkConnection();
 window.setInterval(checkConnection, 15_000);
