@@ -11,6 +11,9 @@ const MPT_API_URL = (process.env.MPT_API_URL || 'http://127.0.0.1:8080')
   .replace(/\/+$/, '');
 const MPT_API_KEY = process.env.MPT_API_KEY || '';
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
+// Model IDs must match Pollinations' catalogue exactly (see https://gen.pollinations.ai/image/models).
+// The old default 'black-forest-labs/flux.1.1-pro' is not in that catalogue.
+const IMAGE_MODEL = process.env.IMAGE_MODEL || 'black-forest-labs/flux.2-pro';
 const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -261,6 +264,29 @@ function getSafeMptVideoUrl(videoReference) {
 
 function sendSafeError(res, error, fallbackMessage) {
   const status = Number(error.status) || 502;
+  console.error(`[promptforge] ${fallbackMessage} (HTTP ${status}): ${error.message}`);
+
+  // Image-provider errors carry a readable message from Pollinations; show it.
+  if (error.provider === 'pollinations') {
+    if (status === 401) {
+      return res.status(401).json({
+        error: 'Pollinations rejected your API key. Check POLLINATIONS_API_KEY in .env.'
+      });
+    }
+    if (status === 402) {
+      return res.status(402).json({
+        error: 'Your Pollinations balance (pollen) is used up, or this model is paid-only. Top up at enter.pollinations.ai or set IMAGE_MODEL to a free model.'
+      });
+    }
+    if (status === 403) {
+      return res.status(403).json({
+        error: 'Your Pollinations key is not allowed to use this model. Edit the key\'s model restrictions at enter.pollinations.ai/keys.'
+      });
+    }
+    return res.status(status >= 400 && status < 600 ? status : 502).json({
+      error: error.message || fallbackMessage
+    });
+  }
 
   if (status === 401 || status === 403) {
     return res.status(status).json({
@@ -475,10 +501,10 @@ app.post('/api/generate-image', async (req, res) => {
   const detail = isWallpaper ? 'ultra' : (
     allowedDetails.has(req.body.detail) ? req.body.detail : 'standard'
   );
-  const wallpaperModel = isWallpaper &&
+  const wallpaperModel = process.env.WALLPAPER_MODEL || (isWallpaper &&
     ['black-forest-labs/flux.2-max', 'black-forest-labs/flux.2-pro'].includes(req.body.wallpaperModel)
       ? req.body.wallpaperModel
-      : 'black-forest-labs/flux.2-max';
+      : 'black-forest-labs/flux.2-max');
 
   const stylePrompts = {
     photorealistic: 'photorealistic professional photography, realistic textures and natural imperfections',
@@ -515,10 +541,10 @@ app.post('/api/generate-image', async (req, res) => {
   ].filter(Boolean).join('. ');
 
   const sizes = isWallpaper
-    ? { '16:9': [3840, 2160] }
+    ? { '16:9': [1920, 1088] }
     : {
-        '9:16': [768, 1365],
-        '16:9': [1365, 768],
+        '9:16': [768, 1360],
+        '16:9': [1360, 768],
         '1:1': [1024, 1024]
       };
 
@@ -530,7 +556,7 @@ app.post('/api/generate-image', async (req, res) => {
     );
     imageUrl.searchParams.set(
       'model',
-      isWallpaper ? wallpaperModel : 'black-forest-labs/flux.1.1-pro'
+      isWallpaper ? wallpaperModel : IMAGE_MODEL
     );
     imageUrl.searchParams.set('width', String(targetWidth));
     imageUrl.searchParams.set('height', String(targetHeight));
@@ -544,10 +570,24 @@ app.post('/api/generate-image', async (req, res) => {
 
     if (!response.ok) {
       const providerMessage = await response.text().catch(() => '');
+      let readableMessage = providerMessage.trim();
+
+      try {
+        const parsed = JSON.parse(readableMessage);
+        readableMessage =
+          parsed.error?.message ||
+          parsed.error ||
+          parsed.message ||
+          readableMessage;
+      } catch {
+        // Keep the provider's plain-text response when it is not JSON.
+      }
+
       const error = new Error(
-        providerMessage || `Image generation failed with HTTP ${response.status}.`
+        readableMessage || `Image generation failed with HTTP ${response.status}.`
       );
       error.status = response.status >= 500 ? 502 : response.status;
+      error.provider = 'pollinations';
       throw error;
     }
 
@@ -576,9 +616,10 @@ app.post('/api/generate-image', async (req, res) => {
     } catch (error) {
       if (!isWallpaper) throw error;
 
-      // Some image providers cap direct generation below 4K. Retry at 1920×1080
-      // and use the server-side high-quality Lanczos upscale as a safe fallback.
-      result = await requestImage(1920, 1080);
+      // Keep a fallback for transient provider failures. The normal wallpaper
+      // source is already 1920×1080, which is broadly supported and is then
+      // processed into the final 3840×2160 JPEG below.
+      result = await requestImage(1280, 720);
     }
 
     const input = Buffer.from(await result.response.arrayBuffer());
@@ -594,7 +635,7 @@ app.post('/api/generate-image', async (req, res) => {
     const sharp = require('sharp');
     const output = await sharp(input)
       .resize(3840, 2160, {
-        fit: 'fill',
+        fit: 'cover',
         kernel: sharp.kernel.lanczos3
       })
       .sharpen({ sigma: 1.05, m1: 0.7, m2: 2 })
