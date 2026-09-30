@@ -11,6 +11,7 @@ const MPT_API_URL = (process.env.MPT_API_URL || 'http://127.0.0.1:8080')
   .replace(/\/+$/, '');
 const MPT_API_KEY = process.env.MPT_API_KEY || '';
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
+const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -463,12 +464,21 @@ app.post('/api/generate-image', async (req, res) => {
   const allowedAspects = new Set(['9:16', '16:9', '1:1']);
   const allowedStyles = new Set(['photorealistic', 'cinematic', 'illustration', 'minimal', '3d']);
   const allowedLighting = new Set(['natural', 'golden-hour', 'soft', 'moody', 'dramatic']);
-  const allowedDetails = new Set(['standard', 'high']);
+  const allowedDetails = new Set(['standard', 'high', 'ultra']);
 
-  const aspect = allowedAspects.has(req.body.aspect) ? req.body.aspect : '9:16';
+  const isWallpaper = Boolean(req.body.wallpaper);
+  const aspect = isWallpaper ? '16:9' : (
+    allowedAspects.has(req.body.aspect) ? req.body.aspect : '9:16'
+  );
   const style = allowedStyles.has(req.body.style) ? req.body.style : 'photorealistic';
   const lighting = allowedLighting.has(req.body.lighting) ? req.body.lighting : 'natural';
-  const detail = allowedDetails.has(req.body.detail) ? req.body.detail : 'standard';
+  const detail = isWallpaper ? 'ultra' : (
+    allowedDetails.has(req.body.detail) ? req.body.detail : 'standard'
+  );
+  const wallpaperModel = isWallpaper &&
+    ['black-forest-labs/flux.2-max', 'black-forest-labs/flux.2-pro'].includes(req.body.wallpaperModel)
+      ? req.body.wallpaperModel
+      : 'black-forest-labs/flux.2-max';
 
   const stylePrompts = {
     photorealistic: 'photorealistic professional photography, realistic textures and natural imperfections',
@@ -486,37 +496,50 @@ app.post('/api/generate-image', async (req, res) => {
     dramatic: 'dramatic directional lighting with strong but realistic contrast'
   };
 
-  const detailPrompt = detail === 'high'
-    ? 'highly detailed, crisp textures and fine environmental details'
-    : 'balanced detail with a natural photographic feel';
+  const detailPrompt = detail === 'ultra'
+    ? 'ultra-high-detail desktop wallpaper, extremely crisp micro-textures, fine environmental detail, realistic material surfaces, precise edges, rich but natural tonal range, high dynamic range, physically plausible lighting, atmospheric depth, professional large-format photography, optimized for close inspection on a 4K display'
+    : detail === 'high'
+      ? 'highly detailed, crisp textures and fine environmental details'
+      : 'balanced detail with a natural photographic feel';
+
+  const wallpaperPrompt = isWallpaper
+    ? 'desktop wallpaper composition, 16:9 landscape, intentional negative space where desktop icons can sit, no text, no typography, no logos, no watermark, no UI, no borders, no people unless explicitly requested, full-frame composition, visually balanced from edge to edge, native 4K presentation'
+    : '';
 
   const imagePrompt = [
     prompt,
     stylePrompts[style],
     lightingPrompts[lighting],
-    detailPrompt
-  ].join('. ');
+    detailPrompt,
+    wallpaperPrompt
+  ].filter(Boolean).join('. ');
 
-  const sizes = {
-    '9:16': [768, 1365],
-    '16:9': [1365, 768],
-    '1:1': [1024, 1024]
-  };
+  const sizes = isWallpaper
+    ? { '16:9': [3840, 2160] }
+    : {
+        '9:16': [768, 1365],
+        '16:9': [1365, 768],
+        '1:1': [1024, 1024]
+      };
+
   const [width, height] = sizes[aspect];
 
-  try {
+  async function requestImage(targetWidth, targetHeight) {
     const imageUrl = new URL(
       `https://gen.pollinations.ai/image/${encodeURIComponent(imagePrompt)}`
     );
-    imageUrl.searchParams.set('model', 'flux');
-    imageUrl.searchParams.set('width', String(width));
-    imageUrl.searchParams.set('height', String(height));
+    imageUrl.searchParams.set(
+      'model',
+      isWallpaper ? wallpaperModel : 'black-forest-labs/flux.1.1-pro'
+    );
+    imageUrl.searchParams.set('width', String(targetWidth));
+    imageUrl.searchParams.set('height', String(targetHeight));
     imageUrl.searchParams.set('nologo', 'true');
 
     const response = await fetchWithTimeout(
       imageUrl,
       { headers: { Authorization: `Bearer ${POLLINATIONS_API_KEY}` } },
-      120_000
+      isWallpaper ? 180_000 : 120_000
     );
 
     if (!response.ok) {
@@ -535,19 +558,60 @@ app.post('/api/generate-image', async (req, res) => {
       throw error;
     }
 
-    res.setHeader('content-type', contentType);
-    res.setHeader('content-disposition', 'inline; filename="promptforge-image.jpg"');
-    res.setHeader('cache-control', 'private, no-store');
-
-    const contentLength = response.headers.get('content-length');
-    if (contentLength) res.setHeader('content-length', contentLength);
-
-    if (response.body) {
-      const { Readable } = require('node:stream');
-      return Readable.fromWeb(response.body).pipe(res);
+    const contentLength = Number(response.headers.get('content-length') || 0);
+    if (contentLength > MAX_IMAGE_BYTES) {
+      const error = new Error('The generated image is too large to process safely.');
+      error.status = 502;
+      throw error;
     }
 
-    return res.status(502).json({ error: 'The image response was empty.' });
+    return { response, contentType };
+  }
+
+  try {
+    let result;
+
+    try {
+      result = await requestImage(width, height);
+    } catch (error) {
+      if (!isWallpaper) throw error;
+
+      // Some image providers cap direct generation below 4K. Retry at 1920×1080
+      // and use the server-side high-quality Lanczos upscale as a safe fallback.
+      result = await requestImage(1920, 1080);
+    }
+
+    const input = Buffer.from(await result.response.arrayBuffer());
+
+    if (!isWallpaper) {
+      res.setHeader('content-type', result.contentType);
+      res.setHeader('content-disposition', 'inline; filename="promptforge-image.jpg"');
+      res.setHeader('cache-control', 'private, no-store');
+      res.setHeader('content-length', input.length);
+      return res.end(input);
+    }
+
+    const sharp = require('sharp');
+    const output = await sharp(input)
+      .resize(3840, 2160, {
+        fit: 'fill',
+        kernel: sharp.kernel.lanczos3
+      })
+      .sharpen({ sigma: 1.05, m1: 0.7, m2: 2 })
+      .jpeg({
+        quality: 95,
+        chromaSubsampling: '4:4:4',
+        mozjpeg: true
+      })
+      .toBuffer();
+
+    res.setHeader('content-type', 'image/jpeg');
+    res.setHeader('content-disposition', 'inline; filename="promptforge-4k-wallpaper.jpg"');
+    res.setHeader('cache-control', 'private, no-store');
+    res.setHeader('content-length', output.length);
+    res.setHeader('x-promptforge-resolution', '3840x2160');
+
+    return res.end(output);
   } catch (error) {
     if (!res.headersSent) {
       return sendSafeError(res, error, 'Could not generate the image.');
