@@ -400,3 +400,26 @@ initResultControls();
 updateCharacterCount();
 checkConnection();
 window.setInterval(checkConnection, 15_000);
+
+if (window.location.search.includes('test-video')) {
+  fetch('/api/test-video', { cache: 'no-store' })
+    .then((response) => response.json())
+    .then((data) => {
+      activeTaskId = data.taskId;
+      elements.renderPanel.hidden = false;
+      elements.result.hidden = false;
+      elements.renderEyebrow.textContent = 'TEST VIDEO';
+      elements.renderTitle.textContent = 'Existing video loaded.';
+      elements.statusTag.textContent = 'COMPLETE';
+      elements.statusTag.dataset.state = 'COMPLETE';
+      elements.renderMessage.textContent = 'Displaying the existing generated video.';
+      elements.progressFill.classList.remove('is-indeterminate');
+      elements.progressFill.style.width = '100%';
+      elements.progressLabel.textContent = '100%';
+      elements.taskIdLabel.textContent = 'TASK / ' + data.taskId;
+      elements.videoPlayer.src = data.videoUrl;
+      elements.downloadButton.href = data.videoUrl;
+      elements.downloadButton.setAttribute('download', 'promptforge-' + data.taskId + '.mp4');
+    })
+    .catch((error) => showError(error.message));
+}
