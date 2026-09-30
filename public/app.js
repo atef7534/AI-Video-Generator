@@ -242,21 +242,31 @@ function showError(message) {
 function showImageComplete() {
   elements.statusTag.textContent = 'COMPLETE';
   elements.statusTag.dataset.state = 'COMPLETE';
-  elements.renderTitle.textContent = 'Your image is ready.';
-  elements.renderEyebrow.textContent = 'IMAGE COMPLETE';
-  elements.renderMessage.textContent = 'Your image is ready.';
+  const isWallpaper = selectedCreationType() === 'wallpaper';
+  elements.renderTitle.textContent = isWallpaper
+    ? 'Your 4K wallpaper is ready.'
+    : 'Your image is ready.';
+  elements.renderEyebrow.textContent = isWallpaper ? '4K WALLPAPER COMPLETE' : 'IMAGE COMPLETE';
+  elements.renderMessage.textContent = isWallpaper
+    ? '3840 × 2160 desktop wallpaper ready to download.'
+    : 'Your image is ready.';
   elements.progressFill.classList.remove('is-indeterminate');
   elements.progressFill.style.width = '100%';
   elements.progressLabel.textContent = '100%';
   elements.result.hidden = false;
   elements.videoPlayer.hidden = true;
   elements.imageResult.hidden = false;
-  elements.resultEyebrow.textContent = 'YOUR IMAGE';
-  elements.resultTitle.textContent = 'Ready to view.';
-  elements.downloadLabel.textContent = 'Image';
+  elements.resultEyebrow.textContent = isWallpaper ? 'YOUR 4K WALLPAPER' : 'YOUR IMAGE';
+  elements.resultTitle.textContent = isWallpaper ? 'Ready for your desktop.' : 'Ready to view.';
+  elements.downloadLabel.textContent = isWallpaper ? '4K JPG' : 'Image';
   elements.downloadButton.href = elements.imageResult.src;
-  elements.downloadButton.setAttribute('download', 'promptforge-image.jpg');
-  elements.taskIdLabel.textContent = 'IMAGE / GENERATED';
+  elements.downloadButton.setAttribute(
+    'download',
+    isWallpaper ? 'promptforge-4k-wallpaper.jpg' : 'promptforge-image.jpg'
+  );
+  elements.taskIdLabel.textContent = isWallpaper
+    ? 'WALLPAPER / 3840 × 2160'
+    : 'IMAGE / GENERATED';
   elements.generateButton.disabled = false;
 }
 
