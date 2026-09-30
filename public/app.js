@@ -433,7 +433,7 @@ async function generateVideo(event) {
   elements.renderPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   try {
-    if (selectedCreationType() === 'image') {
+    if (['image', 'wallpaper'].includes(selectedCreationType())) {
       await generateImage();
       elements.generateButton.disabled = false;
       return;
