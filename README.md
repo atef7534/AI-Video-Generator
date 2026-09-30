@@ -10,7 +10,7 @@ and keeps provider API keys on the server.
 - Node.js 18 or newer
 - MoneyPrinterTurbo running with its REST API enabled
 - MoneyPrinterTurbo configured with the LLM, TTS, and media providers you need
-- A Pollinations API key if you want image generation
+- A Cloudflare account with Workers AI enabled if you want image generation
 
 MoneyPrinterTurbo's API documentation is typically available from the running
 service at `http://127.0.0.1:8080/docs`.
@@ -26,7 +26,8 @@ Copy `.env.example` to `.env` and adjust the values:
 ```env
 MPT_API_URL=http://127.0.0.1:8080
 MPT_API_KEY=
-POLLINATIONS_API_KEY=
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_API_TOKEN=
 PORT=3000
 ```
 
@@ -46,14 +47,14 @@ npm run dev
 
 ## 4K Wallpaper Mode
 
-The Image workspace includes a dedicated **4K Wallpaper** mode for desktop backgrounds. It locks the composition to 16:9 and targets **3840 × 2160** output. The server requests a high-detail image from Pollinations using Flux 2 Max (or Flux 2 Pro), adds wallpaper-specific composition instructions, and processes the final result through Sharp with Lanczos resizing and high-quality JPEG output. If the image provider rejects a direct 3840 × 2160 request, PromptForge automatically retries at 1920 × 1080 and performs the server-side 4× upscale.
+The Image workspace includes a dedicated **4K Wallpaper** mode for desktop backgrounds. It locks the composition to 16:9 and targets **3840 × 2160** output. The server requests a 1920 × 1080 source from Cloudflare Workers AI using FLUX.1 Schnell, adds wallpaper-specific composition instructions, and processes the result through Sharp with Lanczos resizing and high-quality JPEG output to produce the final 3840 × 2160 file. Cloudflare's Workers Free plan currently includes a daily no-charge Workers AI allocation, so this avoids the Pollinations Pollen requirement.
 
 A larger output file does not magically create missing detail, so the wallpaper pipeline combines a detail-focused prompt, a high-quality image model, and a high-quality resize/sharpening pass. For the best results, describe the scene with concrete materials, lighting, textures, atmosphere, and composition.
 
 ## Features
 
 - Video generation through MoneyPrinterTurbo
-- Image generation through Pollinations, with the key kept server-side
+- Image generation through Cloudflare Workers AI, with credentials kept server-side
 - Portrait (9:16), landscape (16:9), and square (1:1) formats
 - Image style, lighting, and detail controls
 - Optional video subtitles
