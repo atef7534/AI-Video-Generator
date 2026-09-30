@@ -223,6 +223,8 @@ function showImageComplete() {
   elements.resultEyebrow.textContent = 'YOUR IMAGE';
   elements.resultTitle.textContent = 'Ready to view.';
   elements.downloadLabel.textContent = 'Image';
+  elements.downloadButton.href = elements.imageResult.src;
+  elements.downloadButton.setAttribute('download', 'promptforge-image.jpg');
   elements.taskIdLabel.textContent = 'IMAGE / GENERATED';
 }
 
