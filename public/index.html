@@ -205,6 +205,34 @@
               </div>
             </fieldset>
 
+            <div class="option-group image-option image-style-group" hidden>
+              <label for="imageStyle" class="field-label">STYLE</label>
+              <div class="select-wrap">
+                <select id="imageStyle" name="imageStyle">
+                  <option value="photorealistic">Photorealistic</option>
+                  <option value="cinematic">Cinematic</option>
+                  <option value="illustration">Illustration</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="3d">3D Render</option>
+                </select>
+                <span aria-hidden="true">⌄</span>
+              </div>
+            </div>
+
+            <div class="option-group image-option image-lighting-group" hidden>
+              <label for="imageLighting" class="field-label">LIGHTING</label>
+              <div class="select-wrap">
+                <select id="imageLighting" name="imageLighting">
+                  <option value="natural">Natural</option>
+                  <option value="golden-hour">Golden Hour</option>
+                  <option value="soft">Soft &amp; Bright</option>
+                  <option value="moody">Moody</option>
+                  <option value="dramatic">Dramatic</option>
+                </select>
+                <span aria-hidden="true">⌄</span>
+              </div>
+            </div>
+
             <div class="option-group language-group">
               <label for="language" class="field-label">LANGUAGE</label>
               <div class="select-wrap">
@@ -216,6 +244,20 @@
                   <option value="fr">French</option>
                 </select>
                 <span aria-hidden="true">⌄</span>
+              </div>
+            </div>
+
+            <div class="option-group image-option image-detail-group" hidden>
+              <span class="field-label">DETAIL</span>
+              <div class="segmented">
+                <label class="segment">
+                  <input type="radio" name="imageDetail" value="standard" checked />
+                  <span>Standard</span>
+                </label>
+                <label class="segment">
+                  <input type="radio" name="imageDetail" value="high" />
+                  <span>High detail</span>
+                </label>
               </div>
             </div>
 
