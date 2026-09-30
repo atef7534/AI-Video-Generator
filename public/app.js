@@ -236,6 +236,7 @@ function showImageComplete() {
   elements.downloadButton.href = elements.imageResult.src;
   elements.downloadButton.setAttribute('download', 'promptforge-image.jpg');
   elements.taskIdLabel.textContent = 'IMAGE / GENERATED';
+  elements.generateButton.disabled = false;
 }
 
 function showComplete(taskId) {
@@ -378,6 +379,10 @@ async function generateVideo(event) {
   elements.result.hidden = true;
   elements.videoPlayer.removeAttribute('src');
   elements.videoPlayer.load();
+  if (elements.imageResult.src.startsWith('blob:')) {
+    URL.revokeObjectURL(elements.imageResult.src);
+  }
+  elements.imageResult.removeAttribute('src');
   elements.renderEyebrow.textContent = 'GENERATION';
   elements.renderTitle.textContent = 'Building your film';
   elements.statusTag.dataset.state = 'QUEUED';
@@ -465,6 +470,10 @@ function initResultControls() {
 
   elements.videoPlayer.addEventListener('error', () => {
     showError('The video was generated, but the browser could not load the finished MP4.');
+  });
+
+  elements.imageResult.addEventListener('error', () => {
+    showError('The image was generated, but the browser could not display the result.');
   });
 
   elements.videoPlayer.addEventListener('loadedmetadata', () => {
