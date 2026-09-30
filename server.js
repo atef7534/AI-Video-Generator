@@ -94,7 +94,13 @@ function getTaskObject(payload) {
 }
 
 function normalizeStatus(rawStatus) {
-  const status = String(rawStatus || '').trim().toLowerCase();
+  const status = String(rawStatus ?? '').trim().toLowerCase();
+
+  // MoneyPrinterTurbo v1.3.7 uses numeric task states:
+  // -1 = failed, 1 = complete, 4 = processing.
+  if (status === '-1') return 'ERROR';
+  if (status === '1') return 'COMPLETE';
+  if (status === '4') return 'PROCESSING';
 
   if (['queued', 'pending', 'waiting', 'scheduled'].includes(status)) {
     return 'QUEUED';
@@ -159,7 +165,8 @@ function findVideoReference(value, depth = 0) {
       /\.(mp4|m4v|mov)(?:$|[?#])/i.test(candidate) ||
       candidate.startsWith('/api/') ||
       candidate.startsWith('/static/') ||
-      candidate.startsWith('/videos/')
+      candidate.startsWith('/videos/') ||
+      candidate.startsWith('/tasks/')
     ) {
       return candidate;
     }
@@ -240,7 +247,7 @@ function getSafeMptVideoUrl(videoReference) {
   if (
     decodedPath.includes('\0') ||
     decodedPath.split('/').some((part) => part === '..') ||
-    !/^\/(?:api\/|static\/|videos\/)/.test(decodedPath)
+    !/^\/(?:api\/|static\/|videos\/|tasks\/)/.test(decodedPath)
   ) {
     const error = new Error('The returned video path is not an allowed media route.');
     error.status = 502;
@@ -277,7 +284,8 @@ function sendSafeError(res, error, fallbackMessage) {
 }
 
 app.get('/api/health', async (_req, res) => {
-  const healthPaths = ['/api/v1/ping', '/api/v1/health'];
+  // MoneyPrinterTurbo v1.3.7 exposes its health check at /ping.
+  const healthPaths = ['/ping'];
 
   for (const healthPath of healthPaths) {
     try {
