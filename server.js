@@ -515,7 +515,7 @@ app.post('/api/generate-image', async (req, res) => {
   ].filter(Boolean).join('. ');
 
   const sizes = isWallpaper
-    ? { '16:9': [3840, 2160] }
+    ? { '16:9': [1920, 1080] }
     : {
         '9:16': [768, 1365],
         '16:9': [1365, 768],
@@ -544,8 +544,21 @@ app.post('/api/generate-image', async (req, res) => {
 
     if (!response.ok) {
       const providerMessage = await response.text().catch(() => '');
+      let readableMessage = providerMessage.trim();
+
+      try {
+        const parsed = JSON.parse(readableMessage);
+        readableMessage =
+          parsed.error?.message ||
+          parsed.error ||
+          parsed.message ||
+          readableMessage;
+      } catch {
+        // Keep the provider's plain-text response when it is not JSON.
+      }
+
       const error = new Error(
-        providerMessage || `Image generation failed with HTTP ${response.status}.`
+        readableMessage || `Image generation failed with HTTP ${response.status}.`
       );
       error.status = response.status >= 500 ? 502 : response.status;
       throw error;
@@ -576,8 +589,9 @@ app.post('/api/generate-image', async (req, res) => {
     } catch (error) {
       if (!isWallpaper) throw error;
 
-      // Some image providers cap direct generation below 4K. Retry at 1920×1080
-      // and use the server-side high-quality Lanczos upscale as a safe fallback.
+      // Keep a fallback for transient provider failures. The normal wallpaper
+      // source is already 1920×1080, which is broadly supported and is then
+      // processed into the final 3840×2160 JPEG below.
       result = await requestImage(1920, 1080);
     }
 
