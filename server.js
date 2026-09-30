@@ -477,9 +477,8 @@ app.post('/api/generate-image', async (req, res) => {
   const detail = isWallpaper ? 'ultra' : (
     allowedDetails.has(req.body.detail) ? req.body.detail : 'standard'
   );
-  // Cloudflare Workers AI currently provides FLUX.1 Schnell with a daily
-  // no-charge allocation on the Workers Free plan. Keep the provider/model
-  // selection server-side so the browser cannot select a paid model.
+  // Keep the provider/model selection server-side so the browser cannot
+  // select a different Cloudflare Workers AI model.
 
   const stylePrompts = {
     photorealistic: 'photorealistic professional photography, realistic textures and natural imperfections',
@@ -539,9 +538,7 @@ app.post('/api/generate-image', async (req, res) => {
         },
         body: JSON.stringify({
           prompt: imagePrompt,
-          width: targetWidth,
-          height: targetHeight,
-          num_steps: 4
+          steps: 4
         })
       },
       isWallpaper ? 180_000 : 120_000
@@ -597,40 +594,43 @@ app.post('/api/generate-image', async (req, res) => {
   try {
     let result;
 
-    try {
-      result = await requestImage(width, height);
-    } catch (error) {
-      if (!isWallpaper) throw error;
-
-      // Keep a fallback for transient provider failures. The normal wallpaper
-      // source is already 1920×1080, which is broadly supported and is then
-      // processed into the final 3840×2160 JPEG below.
-      result = await requestImage(1920, 1080);
-    }
+    result = await requestImage(width, height);
 
     const input = result.input;
 
-    if (!isWallpaper) {
-      res.setHeader('content-type', result.contentType);
-      res.setHeader('content-disposition', 'inline; filename="promptforge-image.jpg"');
-      res.setHeader('cache-control', 'private, no-store');
-      res.setHeader('content-length', input.length);
-      return res.end(input);
-    }
-
     const sharp = require('sharp');
+
+    // FLUX.1 Schnell's current API exposes prompt/steps; it returns a
+    // model-native image that we normalize to the requested aspect locally.
+    // This keeps the Cloudflare request compatible with the model schema.
+    const outputWidth = isWallpaper ? 3840 : width;
+    const outputHeight = isWallpaper ? 2160 : height;
+
     const output = await sharp(input)
-      .resize(3840, 2160, {
-        fit: 'fill',
+      .resize(outputWidth, outputHeight, {
+        fit: 'cover',
+        position: 'centre',
         kernel: sharp.kernel.lanczos3
       })
-      .sharpen({ sigma: 1.05, m1: 0.7, m2: 2 })
+      .sharpen({
+        sigma: isWallpaper ? 1.05 : 0.8,
+        m1: 0.7,
+        m2: 2
+      })
       .jpeg({
-        quality: 95,
+        quality: isWallpaper ? 95 : 92,
         chromaSubsampling: '4:4:4',
         mozjpeg: true
       })
       .toBuffer();
+
+    if (!isWallpaper) {
+      res.setHeader('content-type', 'image/jpeg');
+      res.setHeader('content-disposition', 'inline; filename="promptforge-image.jpg"');
+      res.setHeader('cache-control', 'private, no-store');
+      res.setHeader('content-length', output.length);
+      return res.end(output);
+    }
 
     res.setHeader('content-type', 'image/jpeg');
     res.setHeader('content-disposition', 'inline; filename="promptforge-4k-wallpaper.jpg"');
