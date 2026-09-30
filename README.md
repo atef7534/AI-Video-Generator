@@ -18,3 +18,20 @@ service at `http://127.0.0.1:8080/docs`.
 ```bash
 npm install
 ```
+
+
+## Image generation
+
+PromptForge now supports both **video** and **image** generation.
+
+Image generation uses the Pollinations image API through the Express backend, so the API key is kept server-side.
+
+Add this to your local `.env`:
+
+```env
+POLLINATIONS_API_KEY=your_pollinations_api_key
+```
+
+Get a key from Pollinations and restart the Node server after adding it.
+
+The image option supports the same 9:16, 16:9, and 1:1 formats as video.
