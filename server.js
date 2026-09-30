@@ -470,7 +470,42 @@ app.post('/api/generate-image', async (req, res) => {
   }
 
   const allowedAspects = new Set(['9:16', '16:9', '1:1']);
+  const allowedStyles = new Set(['photorealistic', 'cinematic', 'illustration', 'minimal', '3d']);
+  const allowedLighting = new Set(['natural', 'golden-hour', 'soft', 'moody', 'dramatic']);
+  const allowedDetails = new Set(['standard', 'high']);
+
   const aspect = allowedAspects.has(req.body.aspect) ? req.body.aspect : '9:16';
+  const style = allowedStyles.has(req.body.style) ? req.body.style : 'photorealistic';
+  const lighting = allowedLighting.has(req.body.lighting) ? req.body.lighting : 'natural';
+  const detail = allowedDetails.has(req.body.detail) ? req.body.detail : 'standard';
+
+  const stylePrompts = {
+    photorealistic: 'photorealistic professional photography, realistic textures and natural imperfections',
+    cinematic: 'cinematic photography, film-like composition, atmospheric depth and subtle color grading',
+    illustration: 'high-quality digital illustration with clean shapes and expressive visual detail',
+    minimal: 'minimalist visual style, clean composition, simple forms and generous negative space',
+    '3d': 'high-quality 3D render with realistic materials, lighting and depth'
+  };
+
+  const lightingPrompts = {
+    natural: 'natural daylight and realistic shadows',
+    'golden-hour': 'warm golden-hour sunlight and soft long shadows',
+    soft: 'soft bright diffused lighting with gentle shadows',
+    moody: 'moody low-key lighting with subtle contrast',
+    dramatic: 'dramatic directional lighting with strong but realistic contrast'
+  };
+
+  const detailPrompt = detail === 'high'
+    ? 'highly detailed, crisp textures and fine environmental details'
+    : 'balanced detail with a natural photographic feel';
+
+  const imagePrompt = [
+    prompt,
+    stylePrompts[style],
+    lightingPrompts[lighting],
+    detailPrompt
+  ].join('. ');
+
   const sizes = {
     '9:16': [768, 1365],
     '16:9': [1365, 768],
@@ -480,7 +515,7 @@ app.post('/api/generate-image', async (req, res) => {
 
   try {
     const imageUrl = new URL(
-      `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}`
+      `https://gen.pollinations.ai/image/${encodeURIComponent(imagePrompt)}`
     );
     imageUrl.searchParams.set('model', 'flux');
     imageUrl.searchParams.set('width', String(width));
