@@ -10,6 +10,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const MPT_API_URL = (process.env.MPT_API_URL || 'http://127.0.0.1:8080')
   .replace(/\/+$/, '');
 const MPT_API_KEY = process.env.MPT_API_KEY || '';
+const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -445,6 +446,87 @@ app.get('/api/test-video', (_req, res) => {
     taskId: TEST_TASK_ID,
     videoUrl: '/api/tasks/' + TEST_TASK_ID + '/video'
   });
+});
+
+app.post('/api/generate-image', async (req, res) => {
+  const prompt = typeof req.body?.prompt === 'string'
+    ? req.body.prompt.trim()
+    : '';
+
+  if (!prompt) {
+    return res.status(400).json({ error: 'Write a brief before generating an image.' });
+  }
+
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return res.status(400).json({
+      error: `Your brief must be ${MAX_PROMPT_LENGTH} characters or fewer.`
+    });
+  }
+
+  if (!POLLINATIONS_API_KEY) {
+    return res.status(503).json({
+      error: 'Image generation is not configured. Add POLLINATIONS_API_KEY to your .env file.'
+    });
+  }
+
+  const allowedAspects = new Set(['9:16', '16:9', '1:1']);
+  const aspect = allowedAspects.has(req.body.aspect) ? req.body.aspect : '9:16';
+  const sizes = {
+    '9:16': [768, 1365],
+    '16:9': [1365, 768],
+    '1:1': [1024, 1024]
+  };
+  const [width, height] = sizes[aspect];
+
+  try {
+    const imageUrl = new URL(
+      `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}`
+    );
+    imageUrl.searchParams.set('model', 'flux');
+    imageUrl.searchParams.set('width', String(width));
+    imageUrl.searchParams.set('height', String(height));
+    imageUrl.searchParams.set('nologo', 'true');
+
+    const response = await fetchWithTimeout(
+      imageUrl,
+      { headers: { Authorization: `Bearer ${POLLINATIONS_API_KEY}` } },
+      120_000
+    );
+
+    if (!response.ok) {
+      const providerMessage = await response.text().catch(() => '');
+      const error = new Error(
+        providerMessage || `Image generation failed with HTTP ${response.status}.`
+      );
+      error.status = response.status >= 500 ? 502 : response.status;
+      throw error;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.toLowerCase().startsWith('image/')) {
+      const error = new Error('The image provider returned a non-image response.');
+      error.status = 502;
+      throw error;
+    }
+
+    res.setHeader('content-type', contentType);
+    res.setHeader('content-disposition', 'inline; filename="promptforge-image.jpg"');
+    res.setHeader('cache-control', 'private, no-store');
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) res.setHeader('content-length', contentLength);
+
+    if (response.body) {
+      const { Readable } = require('node:stream');
+      return Readable.fromWeb(response.body).pipe(res);
+    }
+
+    return res.status(502).json({ error: 'The image response was empty.' });
+  } catch (error) {
+    if (!res.headersSent) {
+      return sendSafeError(res, error, 'Could not generate the image.');
+    }
+  }
 });
 
 app.get('/api/tasks/:taskId/video', async (req, res) => {
