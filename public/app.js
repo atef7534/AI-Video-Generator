@@ -36,7 +36,10 @@ const elements = {
   imageResult: document.getElementById('imageResult'),
   resultEyebrow: document.getElementById('resultEyebrow'),
   resultTitle: document.getElementById('resultTitle'),
-  downloadLabel: document.getElementById('downloadLabel')
+  downloadLabel: document.getElementById('downloadLabel'),
+  imageStyle: document.getElementById('imageStyle'),
+  imageLighting: document.getElementById('imageLighting'),
+  imageDetail: document.querySelectorAll('input[name="imageDetail"]')
 };
 
 let activeTaskId = '';
@@ -123,6 +126,10 @@ function selectedCreationType() {
   return document.querySelector('input[name="creationType"]:checked')?.value || 'video';
 }
 
+function selectedImageDetail() {
+  return document.querySelector('input[name="imageDetail"]:checked')?.value || 'standard';
+}
+
 function updateCreationUI() {
   const isImage = selectedCreationType() === 'image';
   const generateLabel = elements.generateButton.querySelector('span:nth-child(2)');
@@ -130,6 +137,9 @@ function updateCreationUI() {
   generateLabel.textContent = isImage ? 'Generate image' : 'Generate video';
   document.querySelector('.subtitles-group').hidden = isImage;
   document.querySelector('.language-group').hidden = isImage;
+  document.querySelectorAll('.image-option').forEach((option) => {
+    option.hidden = !isImage;
+  });
 }
 
 async function apiRequest(url, options = {}) {
@@ -327,7 +337,10 @@ async function generateImage() {
     method: 'POST',
     body: JSON.stringify({
       prompt: elements.prompt.value.trim(),
-      aspect: selectedAspect()
+      aspect: selectedAspect(),
+      style: elements.imageStyle.value,
+      lighting: elements.imageLighting.value,
+      detail: selectedImageDetail()
     })
   });
 
