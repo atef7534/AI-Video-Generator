@@ -10,11 +10,6 @@ const PORT = Number(process.env.PORT) || 3000;
 const MPT_API_URL = (process.env.MPT_API_URL || 'http://127.0.0.1:8080')
   .replace(/\/+$/, '');
 const MPT_API_KEY = process.env.MPT_API_KEY || '';
-const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
-// Model IDs must match Pollinations' catalogue exactly (see https://gen.pollinations.ai/image/models).
-// The old default 'black-forest-labs/flux.1.1-pro' is not in that catalogue.
-const IMAGE_MODEL = process.env.IMAGE_MODEL || 'black-forest-labs/flux.2-pro';
-
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || '';
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || '';
 const CLOUDFLARE_IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
@@ -270,28 +265,6 @@ function sendSafeError(res, error, fallbackMessage) {
   const status = Number(error.status) || 502;
   console.error(`[promptforge] ${fallbackMessage} (HTTP ${status}): ${error.message}`);
 
-  // Image-provider errors carry a readable message from Pollinations; show it.
-  if (error.provider === 'pollinations') {
-    if (status === 401) {
-      return res.status(401).json({
-        error: 'Pollinations rejected your API key. Check POLLINATIONS_API_KEY in .env.'
-      });
-    }
-    if (status === 402) {
-      return res.status(402).json({
-        error: 'Your Pollinations balance (pollen) is used up, or this model is paid-only. Top up at enter.pollinations.ai or set IMAGE_MODEL to a free model.'
-      });
-    }
-    if (status === 403) {
-      return res.status(403).json({
-        error: 'Your Pollinations key is not allowed to use this model. Edit the key\'s model restrictions at enter.pollinations.ai/keys.'
-      });
-    }
-    return res.status(status >= 400 && status < 600 ? status : 502).json({
-      error: error.message || fallbackMessage
-    });
-  }
-
   if (status === 401 || status === 403) {
     return res.status(status).json({
       error: error.message || 'The configured AI provider rejected the request.'
@@ -471,9 +444,7 @@ app.get('/api/tasks/:taskId', async (req, res) => {
 
 
 app.post('/api/generate-image', async (req, res) => {
-  const prompt = typeof req.body?.prompt === 'string'
-    ? req.body.prompt.trim()
-    : '';
+  const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
 
   if (!prompt) {
     return res.status(400).json({ error: 'Write a brief before generating an image.' });
@@ -481,7 +452,7 @@ app.post('/api/generate-image', async (req, res) => {
 
   if (prompt.length > MAX_PROMPT_LENGTH) {
     return res.status(400).json({
-      error: `Your brief must be ${MAX_PROMPT_LENGTH} characters or fewer.`
+      error: \`Your brief must be \${MAX_PROMPT_LENGTH} characters or fewer.\`
     });
   }
 
@@ -497,20 +468,14 @@ app.post('/api/generate-image', async (req, res) => {
   const allowedDetails = new Set(['standard', 'high', 'ultra']);
 
   const isWallpaper = Boolean(req.body.wallpaper);
-  const aspect = isWallpaper ? '16:9' : (
-    allowedAspects.has(req.body.aspect) ? req.body.aspect : '9:16'
-  );
+  const aspect = isWallpaper
+    ? '16:9'
+    : (allowedAspects.has(req.body.aspect) ? req.body.aspect : '9:16');
   const style = allowedStyles.has(req.body.style) ? req.body.style : 'photorealistic';
   const lighting = allowedLighting.has(req.body.lighting) ? req.body.lighting : 'natural';
-  const detail = isWallpaper ? 'ultra' : (
-    allowedDetails.has(req.body.detail) ? req.body.detail : 'standard'
-  );
-  // Keep the provider/model selection server-side so the browser cannot
-  // select a different Cloudflare Workers AI model.
-  const wallpaperModel = process.env.WALLPAPER_MODEL || (isWallpaper &&
-    ['black-forest-labs/flux.2-max', 'black-forest-labs/flux.2-pro'].includes(req.body.wallpaperModel)
-      ? req.body.wallpaperModel
-      : 'black-forest-labs/flux.2-max');
+  const detail = isWallpaper
+    ? 'ultra'
+    : (allowedDetails.has(req.body.detail) ? req.body.detail : 'standard');
 
   const stylePrompts = {
     photorealistic: 'photorealistic professional photography, realistic textures and natural imperfections',
@@ -535,7 +500,7 @@ app.post('/api/generate-image', async (req, res) => {
       : 'balanced detail with a natural photographic feel';
 
   const wallpaperPrompt = isWallpaper
-    ? 'desktop wallpaper composition, 16:9 landscape, intentional negative space where desktop icons can sit, no text, no typography, no logos, no watermark, no UI, no borders, no people unless explicitly requested, full-frame composition, visually balanced from edge to edge, native 4K presentation'
+    ? 'desktop wallpaper composition, 16:9 landscape, intentional negative space where desktop icons can sit, no text, no typography, no logos, no watermark, no UI, no borders, no people unless explicitly requested, full-frame composition, visually balanced from edge to edge'
     : '';
 
   const imagePrompt = [
@@ -546,40 +511,26 @@ app.post('/api/generate-image', async (req, res) => {
     wallpaperPrompt
   ].filter(Boolean).join('. ');
 
-  const sizes = isWallpaper
-    ? { '16:9': [1920, 1080] }
-    : {
-        '9:16': [768, 1360],
-        '16:9': [1360, 768],
-        '1:1': [1024, 1024]
-      };
+  // FLUX.1 Schnell currently accepts prompt and steps. The generated source
+  // is normalized locally with Sharp to the dimensions used by PromptForge.
+  const sizes = {
+    '9:16': [768, 1360],
+    '16:9': [1360, 768],
+    '1:1': [1024, 1024]
+  };
 
   const [width, height] = sizes[aspect];
 
-  async function requestImage(targetWidth, targetHeight) {
-    const isCloudflareModel = (isWallpaper ? wallpaperModel : IMAGE_MODEL).startsWith('@cf/');
-    const imageUrl = isCloudflareModel
-      ? `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${encodeURIComponent(isWallpaper ? wallpaperModel : CLOUDFLARE_IMAGE_MODEL)}`
-      : new URL(
-          `https://gen.pollinations.ai/image/${encodeURIComponent(imagePrompt)}`
-        );
-
-    if (!isCloudflareModel) {
-      imageUrl.searchParams.set(
-        'model',
-        isWallpaper ? wallpaperModel : IMAGE_MODEL
-      );
-      imageUrl.searchParams.set('width', String(targetWidth));
-      imageUrl.searchParams.set('height', String(targetHeight));
-      imageUrl.searchParams.set('nologo', 'true');
-    }
+  async function requestImage() {
+    const imageUrl =
+      \`https://api.cloudflare.com/client/v4/accounts/\${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/\${encodeURIComponent(CLOUDFLARE_IMAGE_MODEL)}\`;
 
     const response = await fetchWithTimeout(
       imageUrl,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+          Authorization: \`Bearer \${CLOUDFLARE_API_TOKEN}\`,
           'content-type': 'application/json'
         },
         body: JSON.stringify({
@@ -590,51 +541,42 @@ app.post('/api/generate-image', async (req, res) => {
       isWallpaper ? 180_000 : 120_000
     );
 
-    const providerBody = await response.json().catch(() => ({}));
-    const isCloudflareModel = (isWallpaper ? wallpaperModel : IMAGE_MODEL).startsWith('@cf/');
+    const responseText = await response.text();
+    let providerBody = {};
+
+    try {
+      providerBody = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      providerBody = {};
+    }
 
     if (!response.ok || providerBody.success === false) {
       const providerError = Array.isArray(providerBody.errors)
         ? providerBody.errors
-            .map((item) => item.message || item.code || '')
+            .map((item) => item?.message || item?.code || '')
             .filter(Boolean)
             .join('; ')
         : '';
 
-      const providerMessage = await response.text().catch(() => '');
-      let readableMessage = providerMessage.trim();
+      let readableMessage =
+        providerError ||
+        providerBody?.error?.message ||
+        providerBody?.error ||
+        providerBody?.message ||
+        responseText.trim();
 
-      try {
-        const parsed = JSON.parse(readableMessage);
-        readableMessage =
-          parsed.error?.message ||
-          parsed.error ||
-          parsed.message ||
-          readableMessage;
-      } catch {
-        // Keep the provider's plain-text response when it is not JSON.
+      if (typeof readableMessage !== 'string' || !readableMessage) {
+        readableMessage = \`Cloudflare Workers AI image generation failed with HTTP \${response.status}.\`;
       }
 
-      const error = new Error(
-        providerError ||
-        readableMessage ||
-        providerBody.error ||
-        `${isCloudflareModel ? 'Cloudflare Workers AI' : 'Pollinations'} image generation failed with HTTP ${response.status}.`
-      );
+      const error = new Error(readableMessage);
       error.status = response.status >= 500 ? 502 : response.status;
-      error.provider = isCloudflareModel ? 'cloudflare' : 'pollinations';
-      );
-      error.status = response.status >= 500 ? 502 : response.status;
-      error.provider = 'pollinations';
       throw error;
     }
 
-    // Cloudflare's current FLUX.1 Schnell docs expose result.image,
-    // while the generic REST schema may expose the generated image directly
-    // as result. Accept both response shapes to keep the integration robust.
-    let imageBase64 = providerBody.result?.image;
+    let imageBase64 = providerBody?.result?.image;
 
-    if (!imageBase64 && typeof providerBody.result === 'string') {
+    if (!imageBase64 && typeof providerBody?.result === 'string') {
       imageBase64 = providerBody.result;
     }
 
@@ -660,45 +602,13 @@ app.post('/api/generate-image', async (req, res) => {
       throw error;
     }
 
-    return {
-      input,
-      contentType: 'image/jpeg'
-    };
+    return input;
   }
 
   try {
-    let result;
-
-    result = await requestImage(width, height);
-
-    result = await requestImage(width, height);
-
-    // Keep a fallback for transient provider failures. The normal wallpaper
-    // source is already 1920×1080, which is broadly supported and is then
-    // processed into the final 3840×2160 JPEG below.
-    if (!result || result.error) {
-      result = await requestImage(1280, 720);
-    }
-
-    const input = result.input || Buffer.from(await result.response.arrayBuffer());
-
-    if (!isWallpaper) {
-      res.setHeader('content-type', result.contentType);
-      res.setHeader('content-disposition', 'inline; filename="promptforge-image.jpg"');
-      res.setHeader('cache-control', 'private, no-store');
-      res.setHeader('content-length', input.length);
-      return res.end(input);
-    }
-
+    const input = await requestImage();
     const sharp = require('sharp');
 
-    // FLUX.1 Schnell's current API exposes prompt/steps; it returns a
-    // model-native image that we normalize to the requested aspect locally.
-    // This keeps the Cloudflare request compatible with the model schema.
-    const outputWidth = isWallpaper ? 3840 : width;
-    const outputHeight = isWallpaper ? 2160 : height;
-
-    const output = await sharp(input)
     const outputWidth = isWallpaper ? 3840 : width;
     const outputHeight = isWallpaper ? 2160 : height;
 
@@ -706,9 +616,6 @@ app.post('/api/generate-image', async (req, res) => {
       .resize(outputWidth, outputHeight, {
         fit: 'cover',
         position: 'centre',
-        kernel: sharp.kernel.lanczos3
-      })
-      .sharpen({
         kernel: sharp.kernel.lanczos3
       })
       .sharpen({
@@ -723,24 +630,22 @@ app.post('/api/generate-image', async (req, res) => {
       })
       .toBuffer();
 
-    if (!isWallpaper) {
-      res.setHeader('content-type', 'image/jpeg');
-      res.setHeader('content-disposition', 'inline; filename="promptforge-image.jpg"');
-      res.setHeader('cache-control', 'private, no-store');
-      res.setHeader('content-length', output.length);
-      return res.end(output);
-    }
-
     res.setHeader('content-type', 'image/jpeg');
-    res.setHeader('content-disposition', 'inline; filename="promptforge-4k-wallpaper.jpg"');
+    res.setHeader(
+      'content-disposition',
+      \`inline; filename="\${isWallpaper ? 'promptforge-4k-wallpaper.jpg' : 'promptforge-image.jpg'}"\`
+    );
     res.setHeader('cache-control', 'private, no-store');
     res.setHeader('content-length', output.length);
-    res.setHeader('x-promptforge-resolution', '3840x2160');
+
+    if (isWallpaper) {
+      res.setHeader('x-promptforge-resolution', '3840x2160');
+    }
 
     return res.end(output);
   } catch (error) {
     if (!res.headersSent) {
-      return sendSafeError(res, error, 'Could not generate the image.');
+      return sendSafeError(res, error, 'Could not generate the image with Cloudflare Workers AI.');
     }
   }
 });
