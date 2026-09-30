@@ -480,6 +480,7 @@ app.get('/api/tasks/:taskId/video', async (req, res) => {
     }
 
     const contentType = videoResponse.headers.get('content-type') || '';
+    const contentLength = videoResponse.headers.get('content-length');
 
     if (!contentType.toLowerCase().includes('video/') &&
         !/\.mp4(?:$|[?#])/i.test(videoUrl.pathname)) {
@@ -495,8 +496,13 @@ app.get('/api/tasks/:taskId/video', async (req, res) => {
     );
     res.setHeader('cache-control', 'private, no-store');
 
+    if (contentLength) {
+      res.setHeader('content-length', contentLength);
+    }
+
     if (videoResponse.body) {
-      return res.send(Buffer.from(await videoResponse.arrayBuffer()));
+      const { Readable } = require('node:stream');
+      return Readable.fromWeb(videoResponse.body).pipe(res);
     }
 
     return res.status(502).json({ error: 'The video response was empty.' });
