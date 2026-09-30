@@ -10,6 +10,11 @@ const PORT = Number(process.env.PORT) || 3000;
 const MPT_API_URL = (process.env.MPT_API_URL || 'http://127.0.0.1:8080')
   .replace(/\/+$/, '');
 const MPT_API_KEY = process.env.MPT_API_KEY || '';
+const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
+// Model IDs must match Pollinations' catalogue exactly (see https://gen.pollinations.ai/image/models).
+// The old default 'black-forest-labs/flux.1.1-pro' is not in that catalogue.
+const IMAGE_MODEL = process.env.IMAGE_MODEL || 'black-forest-labs/flux.2-pro';
+
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || '';
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || '';
 const CLOUDFLARE_IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
@@ -263,6 +268,29 @@ function getSafeMptVideoUrl(videoReference) {
 
 function sendSafeError(res, error, fallbackMessage) {
   const status = Number(error.status) || 502;
+  console.error(`[promptforge] ${fallbackMessage} (HTTP ${status}): ${error.message}`);
+
+  // Image-provider errors carry a readable message from Pollinations; show it.
+  if (error.provider === 'pollinations') {
+    if (status === 401) {
+      return res.status(401).json({
+        error: 'Pollinations rejected your API key. Check POLLINATIONS_API_KEY in .env.'
+      });
+    }
+    if (status === 402) {
+      return res.status(402).json({
+        error: 'Your Pollinations balance (pollen) is used up, or this model is paid-only. Top up at enter.pollinations.ai or set IMAGE_MODEL to a free model.'
+      });
+    }
+    if (status === 403) {
+      return res.status(403).json({
+        error: 'Your Pollinations key is not allowed to use this model. Edit the key\'s model restrictions at enter.pollinations.ai/keys.'
+      });
+    }
+    return res.status(status >= 400 && status < 600 ? status : 502).json({
+      error: error.message || fallbackMessage
+    });
+  }
 
   if (status === 401 || status === 403) {
     return res.status(status).json({
@@ -479,6 +507,10 @@ app.post('/api/generate-image', async (req, res) => {
   );
   // Keep the provider/model selection server-side so the browser cannot
   // select a different Cloudflare Workers AI model.
+  const wallpaperModel = process.env.WALLPAPER_MODEL || (isWallpaper &&
+    ['black-forest-labs/flux.2-max', 'black-forest-labs/flux.2-pro'].includes(req.body.wallpaperModel)
+      ? req.body.wallpaperModel
+      : 'black-forest-labs/flux.2-max');
 
   const stylePrompts = {
     photorealistic: 'photorealistic professional photography, realistic textures and natural imperfections',
@@ -517,16 +549,30 @@ app.post('/api/generate-image', async (req, res) => {
   const sizes = isWallpaper
     ? { '16:9': [1920, 1080] }
     : {
-        '9:16': [768, 1365],
-        '16:9': [1365, 768],
+        '9:16': [768, 1360],
+        '16:9': [1360, 768],
         '1:1': [1024, 1024]
       };
 
   const [width, height] = sizes[aspect];
 
   async function requestImage(targetWidth, targetHeight) {
-    const imageUrl =
-      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${CLOUDFLARE_IMAGE_MODEL}`;
+    const isCloudflareModel = (isWallpaper ? wallpaperModel : IMAGE_MODEL).startsWith('@cf/');
+    const imageUrl = isCloudflareModel
+      ? `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${encodeURIComponent(isWallpaper ? wallpaperModel : CLOUDFLARE_IMAGE_MODEL)}`
+      : new URL(
+          `https://gen.pollinations.ai/image/${encodeURIComponent(imagePrompt)}`
+        );
+
+    if (!isCloudflareModel) {
+      imageUrl.searchParams.set(
+        'model',
+        isWallpaper ? wallpaperModel : IMAGE_MODEL
+      );
+      imageUrl.searchParams.set('width', String(targetWidth));
+      imageUrl.searchParams.set('height', String(targetHeight));
+      imageUrl.searchParams.set('nologo', 'true');
+    }
 
     const response = await fetchWithTimeout(
       imageUrl,
@@ -545,6 +591,7 @@ app.post('/api/generate-image', async (req, res) => {
     );
 
     const providerBody = await response.json().catch(() => ({}));
+    const isCloudflareModel = (isWallpaper ? wallpaperModel : IMAGE_MODEL).startsWith('@cf/');
 
     if (!response.ok || providerBody.success === false) {
       const providerError = Array.isArray(providerBody.errors)
@@ -554,12 +601,31 @@ app.post('/api/generate-image', async (req, res) => {
             .join('; ')
         : '';
 
+      const providerMessage = await response.text().catch(() => '');
+      let readableMessage = providerMessage.trim();
+
+      try {
+        const parsed = JSON.parse(readableMessage);
+        readableMessage =
+          parsed.error?.message ||
+          parsed.error ||
+          parsed.message ||
+          readableMessage;
+      } catch {
+        // Keep the provider's plain-text response when it is not JSON.
+      }
+
       const error = new Error(
         providerError ||
+        readableMessage ||
         providerBody.error ||
-        `Cloudflare Workers AI image generation failed with HTTP ${response.status}.`
+        `${isCloudflareModel ? 'Cloudflare Workers AI' : 'Pollinations'} image generation failed with HTTP ${response.status}.`
       );
       error.status = response.status >= 500 ? 502 : response.status;
+      error.provider = isCloudflareModel ? 'cloudflare' : 'pollinations';
+      );
+      error.status = response.status >= 500 ? 502 : response.status;
+      error.provider = 'pollinations';
       throw error;
     }
 
@@ -605,7 +671,24 @@ app.post('/api/generate-image', async (req, res) => {
 
     result = await requestImage(width, height);
 
-    const input = result.input;
+    result = await requestImage(width, height);
+
+    // Keep a fallback for transient provider failures. The normal wallpaper
+    // source is already 1920×1080, which is broadly supported and is then
+    // processed into the final 3840×2160 JPEG below.
+    if (!result || result.error) {
+      result = await requestImage(1280, 720);
+    }
+
+    const input = result.input || Buffer.from(await result.response.arrayBuffer());
+
+    if (!isWallpaper) {
+      res.setHeader('content-type', result.contentType);
+      res.setHeader('content-disposition', 'inline; filename="promptforge-image.jpg"');
+      res.setHeader('cache-control', 'private, no-store');
+      res.setHeader('content-length', input.length);
+      return res.end(input);
+    }
 
     const sharp = require('sharp');
 
@@ -616,9 +699,16 @@ app.post('/api/generate-image', async (req, res) => {
     const outputHeight = isWallpaper ? 2160 : height;
 
     const output = await sharp(input)
+    const outputWidth = isWallpaper ? 3840 : width;
+    const outputHeight = isWallpaper ? 2160 : height;
+
+    const output = await sharp(input)
       .resize(outputWidth, outputHeight, {
         fit: 'cover',
         position: 'centre',
+        kernel: sharp.kernel.lanczos3
+      })
+      .sharpen({
         kernel: sharp.kernel.lanczos3
       })
       .sharpen({

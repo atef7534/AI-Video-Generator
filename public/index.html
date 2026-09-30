@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#10110f" />
+    <meta name="theme-color" content="#08090b" />
     <meta
       name="description"
-      content="PromptForge is a creative video workshop powered by MoneyPrinterTurbo."
+      content="PromptForge turns a written brief into a video, an image, or a 4K wallpaper."
     />
     <title>PromptForge — AI Video Workshop</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -55,38 +55,20 @@
 
     <main>
       <section class="hero" aria-labelledby="heroTitle">
-        <div class="hero-copy">
-          <p class="eyebrow">
-            <span class="eyebrow-line"></span> AI CREATIVE WORKSHOP
-          </p>
-          <h1 id="heroTitle">
-            Give it a thought.<br /><span>Make it real.</span>
-          </h1>
-          <p class="hero-description">
-            Create videos, images, or ultra-detailed 4K wallpapers from a
-            simple creative brief. PromptForge handles the generation settings
-            for you.
-          </p>
-        </div>
-
-        <div class="hero-index" aria-hidden="true">
-          <span>STUDIO 01</span>
-          <span class="index-rule"></span>
-          <span>IDEA → IMAGE</span>
-        </div>
+        <h1 id="heroTitle">
+          Give it a thought.<br /><span>Make it real.</span>
+        </h1>
+        <p class="hero-description">
+          Describe what you want and PromptForge makes it: a narrated video, an
+          image, or a 4K desktop wallpaper.
+        </p>
       </section>
 
-      <section class="workspace" aria-label="Video creation workspace">
-        <div class="section-marker">
-          <span>01</span>
-          <span class="marker-line"></span>
-          <span>THE WORKSPACE</span>
-        </div>
-
+      <section class="workspace" aria-label="Creation workspace">
         <form class="prompt-form" id="promptForm">
           <div class="editor">
             <div class="editor-topline">
-              <label for="prompt" class="field-label">YOUR BRIEF</label>
+              <label for="prompt" class="field-label">Your brief</label>
               <div class="editor-meta">
                 <span class="char-count" id="charCount">0 / 1200</span>
                 <button class="text-button" id="clearPrompt" type="button">
@@ -106,130 +88,150 @@
             ></textarea>
 
             <p class="sr-only" id="promptHelp">
-              Describe the video you want to generate. Maximum 1200 characters.
+              Describe what you want to generate. Maximum 1200 characters.
             </p>
 
             <div class="editor-foot">
               <span class="editor-hint"
-                ><span class="hint-spark">✳</span> A good brief makes a better
-                film.</span
+                >Concrete details make a better result.</span
               >
               <span class="editor-hint editor-hint--right"
-                >⌘ / CTRL + ENTER TO GENERATE</span
+                >Ctrl / ⌘ + Enter to generate</span
               >
             </div>
           </div>
 
           <div class="suggestions" aria-label="Prompt starters">
-            <span class="suggestion-label">START WITH</span>
+            <span class="suggestion-label">Start with</span>
             <button
               type="button"
               class="chip"
               data-prompt="Create an educational video that explains"
             >
-              Education <span>↗</span>
+              Education
             </button>
             <button
               type="button"
               class="chip"
               data-prompt="Create a cinematic short film about"
             >
-              Cinematic <span>↗</span>
+              Cinematic
             </button>
             <button
               type="button"
               class="chip"
               data-prompt="Create a visually clear tech explainer about"
             >
-              Tech <span>↗</span>
+              Tech
             </button>
             <button
               type="button"
               class="chip"
               data-prompt="Tell a memorable story about"
             >
-              Storytelling <span>↗</span>
+              Storytelling
             </button>
             <button
               type="button"
               class="chip"
               data-prompt="Create a punchy social media video about"
             >
-              Social Media <span>↗</span>
+              Social media
             </button>
           </div>
 
           <div class="options">
             <fieldset class="option-group option-group--mode">
-              <legend class="field-label">CREATE</legend>
-              <div class="segmented" role="radiogroup" aria-label="Creation type">
+              <legend class="field-label">Create</legend>
+              <div
+                class="segmented segmented--tiles"
+                role="radiogroup"
+                aria-label="Creation type"
+              >
                 <label class="segment">
-                  <input type="radio" name="creationType" value="video" checked />
-                  <span>Video <small>MP4</small></span>
+                  <input
+                    type="radio"
+                    name="creationType"
+                    value="video"
+                    checked
+                  />
+                  <span
+                    ><b class="seg-title">Video</b
+                    ><small>MP4 with voice</small></span
+                  >
                 </label>
                 <label class="segment">
                   <input type="radio" name="creationType" value="image" />
-                  <span>Image <small>PNG / JPG</small></span>
+                  <span><b class="seg-title">Image</b><small>JPG</small></span>
                 </label>
                 <label class="segment segment--wallpaper">
                   <input type="radio" name="creationType" value="wallpaper" />
-                  <span>4K Wallpaper <small>3840×2160</small></span>
+                  <span
+                    ><b class="seg-title">4K wallpaper</b
+                    ><small>3840 × 2160</small></span
+                  >
                 </label>
               </div>
             </fieldset>
 
             <fieldset class="option-group option-group--format">
-              <legend class="field-label">FORMAT</legend>
+              <legend class="field-label">Format</legend>
               <div
-                class="segmented"
+                class="segmented segmented--format"
                 role="radiogroup"
-                aria-label="Video format"
+                aria-label="Aspect ratio"
               >
                 <label class="segment">
                   <input type="radio" name="aspect" value="9:16" checked />
-                  <span
-                    ><i class="format-icon format-icon--portrait"></i>Portrait
-                    <small>9:16</small></span
-                  >
+                  <span>
+                    <b class="seg-title"
+                      ><i class="format-icon format-icon--portrait"></i>9:16</b
+                    >
+                    <small>Portrait</small>
+                  </span>
                 </label>
                 <label class="segment">
                   <input type="radio" name="aspect" value="16:9" />
-                  <span
-                    ><i class="format-icon format-icon--landscape"></i>Landscape
-                    <small>16:9</small></span
-                  >
+                  <span>
+                    <b class="seg-title"
+                      ><i class="format-icon format-icon--landscape"></i>16:9</b
+                    >
+                    <small>Landscape</small>
+                  </span>
                 </label>
                 <label class="segment">
                   <input type="radio" name="aspect" value="1:1" />
-                  <span
-                    ><i class="format-icon format-icon--square"></i>Square
-                    <small>1:1</small></span
-                  >
+                  <span>
+                    <b class="seg-title"
+                      ><i class="format-icon format-icon--square"></i>1:1</b
+                    >
+                    <small>Square</small>
+                  </span>
                 </label>
               </div>
             </fieldset>
 
             <div class="option-group image-option image-style-group" hidden>
-              <label for="imageStyle" class="field-label">STYLE</label>
+              <label for="imageStyle" class="field-label">Style</label>
               <div class="select-wrap">
                 <select id="imageStyle" name="imageStyle">
                   <option value="photorealistic">Photorealistic</option>
                   <option value="cinematic">Cinematic</option>
                   <option value="illustration">Illustration</option>
                   <option value="minimal">Minimal</option>
-                  <option value="3d">3D Render</option>
+                  <option value="3d">3D render</option>
                 </select>
                 <span aria-hidden="true">⌄</span>
               </div>
             </div>
 
             <div class="option-group image-option image-lighting-group" hidden>
-              <label for="imageLighting" class="field-label">LIGHTING</label>
+              <label for="imageLighting" class="field-label">Lighting</label>
               <div class="select-wrap">
                 <select id="imageLighting" name="imageLighting">
                   <option value="natural">Natural</option>
-                  <option value="golden-hour">Golden Hour</option>
-                  <option value="soft">Soft &amp; Bright</option>
+                  <option value="golden-hour">Golden hour</option>
+                  <option value="soft">Soft &amp; bright</option>
                   <option value="moody">Moody</option>
                   <option value="dramatic">Dramatic</option>
                 </select>
@@ -238,7 +240,7 @@
             </div>
 
             <div class="option-group language-group">
-              <label for="language" class="field-label">LANGUAGE</label>
+              <label for="language" class="field-label">Voice language</label>
               <div class="select-wrap">
                 <select id="language" name="language">
                   <option value="">Auto detect</option>
@@ -251,11 +253,23 @@
               </div>
             </div>
 
-            <div class="option-group image-option image-detail-group" hidden>
-              <span class="field-label">DETAIL</span>
-              <div class="segmented">
+            <fieldset
+              class="option-group image-option image-detail-group"
+              hidden
+            >
+              <legend class="field-label">Detail</legend>
+              <div
+                class="segmented"
+                role="radiogroup"
+                aria-label="Image detail"
+              >
                 <label class="segment">
-                  <input type="radio" name="imageDetail" value="standard" checked />
+                  <input
+                    type="radio"
+                    name="imageDetail"
+                    value="standard"
+                    checked
+                  />
                   <span>Standard</span>
                 </label>
                 <label class="segment">
@@ -263,20 +277,32 @@
                   <span>High detail</span>
                 </label>
               </div>
-            </div>
+            </fieldset>
 
-            <div class="option-group wallpaper-option wallpaper-quality-group" hidden>
-              <label for="wallpaperModel" class="field-label">WALLPAPER ENGINE</label>
+            <div
+              class="option-group wallpaper-option wallpaper-quality-group"
+              hidden
+            >
+              <label for="wallpaperModel" class="field-label">Engine</label>
               <div class="select-wrap">
                 <select id="wallpaperModel" name="wallpaperModel">
                   <option value="cloudflare-flux-schnell">FLUX.1 Schnell · Free tier</option>
+                  <option value="black-forest-labs/flux.2-max">
+                    Maximum detail
+                  </option>
+                  <option value="black-forest-labs/flux.2-pro">
+                    Professional
+                  </option>
                 </select>
                 <span aria-hidden="true">⌄</span>
               </div>
             </div>
 
-            <div class="option-group wallpaper-option wallpaper-detail-group" hidden>
-              <span class="field-label">4K OUTPUT</span>
+            <div
+              class="option-group wallpaper-option wallpaper-detail-group"
+              hidden
+            >
+              <span class="field-label">Output</span>
               <div class="wallpaper-spec">
                 <strong>3840 × 2160</strong>
                 <span>16:9 · JPEG · 95% quality</span>
@@ -284,7 +310,7 @@
             </div>
 
             <div class="option-group subtitles-group">
-              <span class="field-label">SUBTITLES</span>
+              <span class="field-label">Subtitles</span>
               <label class="switch">
                 <input id="subtitles" type="checkbox" checked />
                 <span class="switch-track" aria-hidden="true"></span>
@@ -295,30 +321,23 @@
 
           <div class="form-actions">
             <p class="form-note" id="formNote">
-              One brief. One finished creation.<br /><span
-                >Choose 4K Wallpaper for a desktop-ready 3840 × 2160 image.</span
+              One brief, one finished video.<br /><span
+                >Narration and subtitles are added for you.</span
               >
             </p>
             <button class="generate-button" id="generateButton" type="submit">
               <span class="generate-star" aria-hidden="true">✦</span>
               <span>Generate video</span>
-              <span class="button-arrow" aria-hidden="true">↗</span>
             </button>
           </div>
         </form>
       </section>
 
       <section class="render-panel" id="renderPanel" aria-live="polite" hidden>
-        <div class="section-marker">
-          <span>02</span>
-          <span class="marker-line"></span>
-          <span>THE RENDER</span>
-        </div>
-
         <div class="render-content">
           <div class="render-heading">
             <div>
-              <p class="eyebrow" id="renderEyebrow">GENERATION</p>
+              <p class="eyebrow" id="renderEyebrow">Generating</p>
               <h2 id="renderTitle">Building your film</h2>
             </div>
             <span class="status-tag" id="statusTag">QUEUED</span>
@@ -336,10 +355,10 @@
           <div class="error-message" id="errorMessage" hidden>
             <span class="error-mark" aria-hidden="true">!</span>
             <div>
-              <h3>Something stopped the render</h3>
+              <h3>The render stopped</h3>
               <p id="errorDetail">
-                MoneyPrinterTurbo could not complete this generation. Check the
-                engine console and your configured providers.
+                The engine could not complete this generation. Check the engine
+                console and your configured providers.
               </p>
             </div>
           </div>
@@ -347,11 +366,11 @@
           <div class="result" id="result" hidden>
             <div class="result-heading">
               <div>
-                <p class="eyebrow" id="resultEyebrow">YOUR CREATION</p>
+                <p class="eyebrow" id="resultEyebrow">Your video</p>
                 <h2 id="resultTitle">Ready to play.</h2>
               </div>
               <button class="copy-task" id="copyTask" type="button">
-                <span aria-hidden="true">▣</span> Copy task ID
+                Copy task ID
               </button>
             </div>
 
@@ -365,7 +384,8 @@
             <div class="result-foot">
               <span class="task-id" id="taskIdLabel"></span>
               <a class="download-button" id="downloadButton" href="#" download>
-                Download <span id="downloadLabel">MP4</span> <span aria-hidden="true">↓</span>
+                Download <span id="downloadLabel">MP4</span>
+                <span aria-hidden="true">↓</span>
               </a>
             </div>
           </div>
@@ -373,8 +393,8 @@
       </section>
 
       <footer class="site-footer">
-        <span>IDEAS IN. MOTION OUT.</span>
-        <span>BUILT FOR THE MAKING OF IT.</span>
+        <span>PromptForge</span>
+        <span>Ideas in. Finished work out.</span>
       </footer>
     </main>
   </body>
