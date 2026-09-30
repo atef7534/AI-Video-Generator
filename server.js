@@ -452,7 +452,7 @@ app.post('/api/generate-image', async (req, res) => {
 
   if (prompt.length > MAX_PROMPT_LENGTH) {
     return res.status(400).json({
-      error: \`Your brief must be \${MAX_PROMPT_LENGTH} characters or fewer.\`
+      error: `Your brief must be ${MAX_PROMPT_LENGTH} characters or fewer.`
     });
   }
 
@@ -522,15 +522,20 @@ app.post('/api/generate-image', async (req, res) => {
   const [width, height] = sizes[aspect];
 
   async function requestImage() {
+    const modelPath = CLOUDFLARE_IMAGE_MODEL
+      .split('/')
+      .map(encodeURIComponent)
+      .join('/');
+
     const imageUrl =
-      \`https://api.cloudflare.com/client/v4/accounts/\${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/\${encodeURIComponent(CLOUDFLARE_IMAGE_MODEL)}\`;
+      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(CLOUDFLARE_ACCOUNT_ID)}/ai/run/${modelPath}`;
 
     const response = await fetchWithTimeout(
       imageUrl,
       {
         method: 'POST',
         headers: {
-          Authorization: \`Bearer \${CLOUDFLARE_API_TOKEN}\`,
+          Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
           'content-type': 'application/json'
         },
         body: JSON.stringify({
@@ -566,7 +571,7 @@ app.post('/api/generate-image', async (req, res) => {
         responseText.trim();
 
       if (typeof readableMessage !== 'string' || !readableMessage) {
-        readableMessage = \`Cloudflare Workers AI image generation failed with HTTP \${response.status}.\`;
+        readableMessage = `Cloudflare Workers AI image generation failed with HTTP ${response.status}.`;
       }
 
       const error = new Error(readableMessage);
@@ -633,7 +638,7 @@ app.post('/api/generate-image', async (req, res) => {
     res.setHeader('content-type', 'image/jpeg');
     res.setHeader(
       'content-disposition',
-      \`inline; filename="\${isWallpaper ? 'promptforge-4k-wallpaper.jpg' : 'promptforge-image.jpg'}"\`
+      `inline; filename="${isWallpaper ? 'promptforge-4k-wallpaper.jpg' : 'promptforge-image.jpg'}"`
     );
     res.setHeader('cache-control', 'private, no-store');
     res.setHeader('content-length', output.length);
