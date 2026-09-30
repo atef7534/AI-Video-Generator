@@ -1233,3 +1233,32 @@ textarea:focus-visible {
   object-fit: contain;
   background: #080908;
 }
+
+
+.image-option {
+  min-width: 138px;
+}
+
+.image-detail-group {
+  grid-column: span 1;
+}
+
+.image-detail-group .segmented {
+  gap: 6px;
+}
+
+.image-detail-group .segment > span {
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .image-option {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .image-option {
+    grid-column: 1 / -1;
+  }
+}
