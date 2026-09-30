@@ -548,3 +548,46 @@ textarea::placeholder { color:var(--faint);opacity:.75; }
     transition-duration:.01ms !important;
   }
 }
+
+
+/* 4K wallpaper controls */
+.segment--wallpaper > span {
+  white-space: nowrap;
+}
+
+.wallpaper-spec {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  margin-top:10px;
+  min-height:48px;
+  justify-content:center;
+  padding:0 13px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface-2);
+}
+
+.wallpaper-spec strong {
+  color:var(--text);
+  font-size:12px;
+  letter-spacing:-.02em;
+}
+
+.wallpaper-spec span {
+  color:var(--faint);
+  font:9px var(--mono);
+  letter-spacing:.02em;
+}
+
+@media (max-width: 980px) {
+  .segment--wallpaper > span {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 760px) {
+  .wallpaper-spec {
+    min-height:48px;
+  }
+}
