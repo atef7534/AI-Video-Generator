@@ -460,7 +460,10 @@ app.get('/api/tasks/:taskId/video', async (req, res) => {
     }
 
     const task = getTaskObject(taskBody);
-    const videoReference = findVideoReference(task);
+    // MoneyPrinterTurbo v1.3.7 may finish without exposing the output path in
+    // the task JSON. Fall back to its deterministic final MP4 location.
+    const videoReference = findVideoReference(task) ||
+      `/api/v1/download/tasks/${encodeURIComponent(taskId)}/final-1.mp4`;
     const videoUrl = getSafeMptVideoUrl(videoReference);
 
     const videoResponse = await fetchWithTimeout(
