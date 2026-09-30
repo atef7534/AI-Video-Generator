@@ -39,7 +39,9 @@ const elements = {
   downloadLabel: document.getElementById('downloadLabel'),
   imageStyle: document.getElementById('imageStyle'),
   imageLighting: document.getElementById('imageLighting'),
-  imageDetail: document.querySelectorAll('input[name="imageDetail"]')
+  imageDetail: document.querySelectorAll('input[name="imageDetail"]'),
+  wallpaperModel: document.getElementById('wallpaperModel'),
+  formNote: document.getElementById('formNote')
 };
 
 let activeTaskId = '';
@@ -131,15 +133,34 @@ function selectedImageDetail() {
 }
 
 function updateCreationUI() {
-  const isImage = selectedCreationType() === 'image';
+  const type = selectedCreationType();
+  const isImage = type === 'image' || type === 'wallpaper';
+  const isWallpaper = type === 'wallpaper';
   const generateLabel = elements.generateButton.querySelector('span:nth-child(2)');
 
-  generateLabel.textContent = isImage ? 'Generate image' : 'Generate video';
+  generateLabel.textContent = isWallpaper
+    ? 'Generate 4K wallpaper'
+    : isImage
+      ? 'Generate image'
+      : 'Generate video';
+
   document.querySelector('.subtitles-group').hidden = isImage;
   document.querySelector('.language-group').hidden = isImage;
   document.querySelectorAll('.image-option').forEach((option) => {
     option.hidden = !isImage;
   });
+  document.querySelectorAll('.wallpaper-option').forEach((option) => {
+    option.hidden = !isWallpaper;
+  });
+
+  if (isWallpaper) {
+    const landscape = document.querySelector('input[name="aspect"][value="16:9"]');
+    if (landscape) landscape.checked = true;
+  }
+
+  elements.formNote.innerHTML = isWallpaper
+    ? 'Desktop-ready output.<br /><span>Native 16:9 composition with a 3840 × 2160 final image.</span>'
+    : 'One brief. One finished creation.<br /><span>No timeline required.</span>';
 }
 
 async function apiRequest(url, options = {}) {
@@ -328,20 +349,28 @@ async function pollTask(taskId, startedAt) {
 }
 
 async function generateImage() {
+  const isWallpaper = selectedCreationType() === 'wallpaper';
+
   elements.statusTag.textContent = 'PROCESSING';
   elements.statusTag.dataset.state = 'PROCESSING';
-  elements.renderEyebrow.textContent = 'IMAGE GENERATION';
-  elements.renderTitle.textContent = 'Creating your image';
-  elements.renderMessage.textContent = 'Sending your prompt to the image engine…';
+  elements.renderEyebrow.textContent = isWallpaper ? '4K WALLPAPER' : 'IMAGE GENERATION';
+  elements.renderTitle.textContent = isWallpaper
+    ? 'Creating your desktop wallpaper'
+    : 'Creating your image';
+  elements.renderMessage.textContent = isWallpaper
+    ? 'Generating a detailed 3840 × 2160 desktop image…'
+    : 'Sending your prompt to the image engine…';
 
   const response = await apiRequest('/api/generate-image', {
     method: 'POST',
     body: JSON.stringify({
       prompt: elements.prompt.value.trim(),
-      aspect: selectedAspect(),
+      aspect: isWallpaper ? '16:9' : selectedAspect(),
       style: elements.imageStyle.value,
       lighting: elements.imageLighting.value,
-      detail: selectedImageDetail()
+      detail: isWallpaper ? 'ultra' : selectedImageDetail(),
+      wallpaper: isWallpaper,
+      wallpaperModel: isWallpaper ? elements.wallpaperModel.value : undefined
     })
   });
 
