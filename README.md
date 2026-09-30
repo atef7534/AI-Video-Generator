@@ -1,14 +1,16 @@
 # PromptForge
 
-PromptForge is a single-page creative video workshop powered by a local
+PromptForge is a single-page creative AI workshop powered by a local
 MoneyPrinterTurbo API. The browser talks only to the Express app. Express
-submits generation requests, polls task status, and serves completed videos.
+submits video generation requests, polls task status, proxies completed media,
+and keeps provider API keys on the server.
 
 ## Requirements
 
 - Node.js 18 or newer
 - MoneyPrinterTurbo running with its REST API enabled
 - MoneyPrinterTurbo configured with the LLM, TTS, and media providers you need
+- A Pollinations API key if you want image generation
 
 MoneyPrinterTurbo's API documentation is typically available from the running
 service at `http://127.0.0.1:8080/docs`.
@@ -19,19 +21,46 @@ service at `http://127.0.0.1:8080/docs`.
 npm install
 ```
 
-
-## Image generation
-
-PromptForge now supports both **video** and **image** generation.
-
-Image generation uses the Pollinations image API through the Express backend, so the API key is kept server-side.
-
-Add this to your local `.env`:
+Copy `.env.example` to `.env` and adjust the values:
 
 ```env
-POLLINATIONS_API_KEY=your_pollinations_api_key
+MPT_API_URL=http://127.0.0.1:8080
+MPT_API_KEY=
+POLLINATIONS_API_KEY=
+PORT=3000
 ```
 
-Get a key from Pollinations and restart the Node server after adding it.
+Then start the app:
 
-The image option supports the same 9:16, 16:9, and 1:1 formats as video.
+```bash
+npm start
+```
+
+Open `http://localhost:3000`.
+
+For development, use:
+
+```bash
+npm run dev
+```
+
+## Features
+
+- Video generation through MoneyPrinterTurbo
+- Image generation through Pollinations, with the key kept server-side
+- Portrait (9:16), landscape (16:9), and square (1:1) formats
+- Image style, lighting, and detail controls
+- Optional video subtitles
+- Live engine connection state
+- Task progress polling and timeout handling
+- Downloadable generated video or image
+- Responsive dark/light studio UI
+- Accessible keyboard focus states and reduced-motion support
+
+## Notes
+
+The application is intentionally a server-rendered static frontend served by
+Express. GitHub Pages cannot run the Express API, so deploy it to a Node-capable
+host if you want the generation features to work remotely.
+
+Never commit your real `.env` file or provider keys.
