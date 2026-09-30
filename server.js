@@ -437,6 +437,16 @@ app.get('/api/tasks/:taskId', async (req, res) => {
   }
 });
 
+// Temporary test route: displays the last successfully generated video without creating a new task.
+const TEST_TASK_ID = '9dbe5c99-12f9-42e7-b2c6-b4d264a83fce';
+
+app.get('/api/test-video', (_req, res) => {
+  res.json({
+    taskId: TEST_TASK_ID,
+    videoUrl: '/api/tasks/' + TEST_TASK_ID + '/video'
+  });
+});
+
 app.get('/api/tasks/:taskId/video', async (req, res) => {
   const taskId = req.params.taskId;
 
