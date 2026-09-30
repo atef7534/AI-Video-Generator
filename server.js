@@ -266,7 +266,7 @@ function sendSafeError(res, error, fallbackMessage) {
 
   if (status === 401 || status === 403) {
     return res.status(status).json({
-      error: 'MoneyPrinterTurbo rejected the API credentials.'
+      error: error.message || 'The configured AI provider rejected the request.'
     });
   }
 
