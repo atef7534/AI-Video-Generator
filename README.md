@@ -46,7 +46,7 @@ npm run dev
 
 ## 4K Wallpaper Mode
 
-The Image workspace includes a dedicated **4K Wallpaper** mode for desktop backgrounds. It locks the composition to 16:9 and targets **3840 × 2160** output. The server requests a high-detail image from Pollinations using Flux 2 Max (or Flux 2 Pro), adds wallpaper-specific composition instructions, and processes the final result through Sharp with Lanczos resizing and high-quality JPEG output. If the image provider rejects a direct 3840 × 2160 request, PromptForge automatically retries at 1920 × 1080 and performs the server-side 4× upscale.
+The Image workspace includes a dedicated **4K Wallpaper** mode for desktop backgrounds. It locks the composition to 16:9 and targets **3840 × 2160** output. The server requests a high-detail 1920 × 1080 source from Pollinations using Flux 2 Max (or Flux 2 Pro), adds wallpaper-specific composition instructions, and processes the result through Sharp with Lanczos resizing and high-quality JPEG output to produce the final 3840 × 2160 file. This avoids relying on the provider accepting a direct 3840 × 2160 generation request.
 
 A larger output file does not magically create missing detail, so the wallpaper pipeline combines a detail-focused prompt, a high-quality image model, and a high-quality resize/sharpening pass. For the best results, describe the scene with concrete materials, lighting, textures, atmosphere, and composition.
 
