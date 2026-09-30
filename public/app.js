@@ -377,6 +377,10 @@ function initResultControls() {
     }
   });
 
+  elements.videoPlayer.addEventListener('error', () => {
+    showError('The video was generated, but the browser could not load the finished MP4.');
+  });
+
   elements.videoPlayer.addEventListener('loadedmetadata', () => {
     const ratio = elements.videoPlayer.videoWidth / elements.videoPlayer.videoHeight;
 
