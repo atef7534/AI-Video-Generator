@@ -4,6 +4,8 @@ const MAX_PROMPT_LENGTH = 1200;
 const POLL_INTERVAL_MS = 2_500;
 const GENERATION_TIMEOUT_MS = 30 * 60 * 1000;
 
+const THEME_COLORS = { dark: '#08090b', light: '#f4f5f1' };
+
 const elements = {
   root: document.documentElement,
   themeToggle: document.getElementById('themeToggle'),
@@ -47,8 +49,15 @@ const elements = {
 let activeTaskId = '';
 let pollTimeoutId = null;
 
+/* ---------- theme ---------- */
+
 function getPreferredTheme() {
-  const savedTheme = localStorage.getItem('promptforge-theme');
+  let savedTheme = null;
+  try {
+    savedTheme = localStorage.getItem('promptforge-theme');
+  } catch {
+    /* storage unavailable, fall through to system preference */
+  }
 
   if (savedTheme === 'light' || savedTheme === 'dark') {
     return savedTheme;
@@ -61,12 +70,16 @@ function getPreferredTheme() {
 
 function applyTheme(theme) {
   elements.root.dataset.theme = theme;
-  localStorage.setItem('promptforge-theme', theme);
+  try {
+    localStorage.setItem('promptforge-theme', theme);
+  } catch {
+    /* ignore */
+  }
 
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
   elements.themeToggle.setAttribute('aria-label', `Switch to ${nextTheme} theme`);
   document.querySelector('meta[name="theme-color"]')
-    .setAttribute('content', theme === 'dark' ? '#10110f' : '#f3f2ec');
+    .setAttribute('content', THEME_COLORS[theme]);
 }
 
 function initTheme() {
@@ -77,6 +90,8 @@ function initTheme() {
     applyTheme(nextTheme);
   });
 }
+
+/* ---------- engine connection ---------- */
 
 function setConnection(state) {
   elements.connection.dataset.state = state;
@@ -101,6 +116,8 @@ async function checkConnection() {
     setConnection('offline');
   }
 }
+
+/* ---------- prompt ---------- */
 
 function updateCharacterCount() {
   elements.charCount.textContent = `${elements.prompt.value.length} / ${MAX_PROMPT_LENGTH}`;
@@ -132,36 +149,67 @@ function selectedImageDetail() {
   return document.querySelector('input[name="imageDetail"]:checked')?.value || 'standard';
 }
 
+function isImageType(type = selectedCreationType()) {
+  return type === 'image' || type === 'wallpaper';
+}
+
+/* ---------- mode-aware controls ---------- */
+
+const MODE_COPY = {
+  video: {
+    button: 'Generate video',
+    note: 'One brief, one finished video.<br /><span>Narration and subtitles are added for you.</span>'
+  },
+  image: {
+    button: 'Generate image',
+    note: 'One brief, one finished image.<br /><span>Pick a format, style and lighting.</span>'
+  },
+  wallpaper: {
+    button: 'Generate 4K wallpaper',
+    note: 'Desktop-ready output.<br /><span>Native 16:9 composition, delivered at 3840 × 2160.</span>'
+  }
+};
+
+function setHidden(selector, hidden) {
+  document.querySelectorAll(selector).forEach((node) => {
+    node.hidden = hidden;
+  });
+}
+
 function updateCreationUI() {
   const type = selectedCreationType();
-  const isImage = type === 'image' || type === 'wallpaper';
   const isWallpaper = type === 'wallpaper';
-  const generateLabel = elements.generateButton.querySelector('span:nth-child(2)');
+  const isImage = isImageType(type);
+  const copy = MODE_COPY[type] || MODE_COPY.video;
 
-  generateLabel.textContent = isWallpaper
-    ? 'Generate 4K wallpaper'
-    : isImage
-      ? 'Generate image'
-      : 'Generate video';
+  elements.generateButton.querySelector('span:nth-child(2)').textContent = copy.button;
+  elements.formNote.innerHTML = copy.note;
 
-  document.querySelector('.subtitles-group').hidden = isImage;
-  document.querySelector('.language-group').hidden = isImage;
-  document.querySelectorAll('.image-option').forEach((option) => {
-    option.hidden = !isImage;
-  });
-  document.querySelectorAll('.wallpaper-option').forEach((option) => {
-    option.hidden = !isWallpaper;
-  });
+  // Video-only
+  setHidden('.language-group', isImage);
+  setHidden('.subtitles-group', isImage);
 
-  if (isWallpaper) {
-    const landscape = document.querySelector('input[name="aspect"][value="16:9"]');
-    if (landscape) landscape.checked = true;
-  }
+  // Image + wallpaper
+  setHidden('.image-style-group', !isImage);
+  setHidden('.image-lighting-group', !isImage);
 
-  elements.formNote.innerHTML = isWallpaper
-    ? 'Desktop-ready output.<br /><span>Native 16:9 composition with a 3840 × 2160 final image.</span>'
-    : 'One brief. One finished creation.<br /><span>No timeline required.</span>';
+  // Image only (wallpaper is always "ultra" detail and always 16:9,
+  // so those controls would be redundant there)
+  setHidden('.option-group--format', isWallpaper);
+  setHidden('.image-detail-group', type !== 'image');
+
+  // Wallpaper only
+  setHidden('.wallpaper-option', !isWallpaper);
+
+  // If a row would end with a single orphan control on tablet, let it span the row.
+  const visible = [
+    ...document.querySelectorAll('.options > .option-group:not(.option-group--mode):not([hidden])')
+  ];
+  visible.forEach((node) => node.classList.remove('is-wide'));
+  if (visible.length % 2 === 1) visible[visible.length - 1].classList.add('is-wide');
 }
+
+/* ---------- requests ---------- */
 
 async function apiRequest(url, options = {}) {
   const response = await fetch(url, {
@@ -192,6 +240,8 @@ async function apiRequest(url, options = {}) {
   return response;
 }
 
+/* ---------- render panel ---------- */
+
 function statusMessage(status, progress) {
   if (status === 'QUEUED') return 'Sending your brief to the engine…';
 
@@ -208,7 +258,7 @@ function setProgress(progress) {
   if (progress === null || progress === undefined) {
     elements.progressFill.classList.add('is-indeterminate');
     elements.progressFill.style.width = '';
-    elements.progressLabel.textContent = 'IN PROGRESS';
+    elements.progressLabel.textContent = 'In progress';
     return;
   }
 
@@ -229,8 +279,8 @@ function showError(message) {
   elements.statusTag.textContent = 'ERROR';
   elements.statusTag.dataset.state = 'ERROR';
   elements.renderTitle.textContent = 'The render hit a pause.';
-  elements.renderEyebrow.textContent = 'GENERATION STOPPED';
-  elements.renderMessage.textContent = 'The engine could not finish this film.';
+  elements.renderEyebrow.textContent = 'Generation stopped';
+  elements.renderMessage.textContent = 'The engine could not finish this render.';
   elements.progressFill.classList.remove('is-indeterminate');
   elements.progressFill.style.width = '0%';
   elements.progressLabel.textContent = '';
@@ -240,13 +290,14 @@ function showError(message) {
 }
 
 function showImageComplete() {
+  const isWallpaper = selectedCreationType() === 'wallpaper';
+
   elements.statusTag.textContent = 'COMPLETE';
   elements.statusTag.dataset.state = 'COMPLETE';
-  const isWallpaper = selectedCreationType() === 'wallpaper';
   elements.renderTitle.textContent = isWallpaper
     ? 'Your 4K wallpaper is ready.'
     : 'Your image is ready.';
-  elements.renderEyebrow.textContent = isWallpaper ? '4K WALLPAPER COMPLETE' : 'IMAGE COMPLETE';
+  elements.renderEyebrow.textContent = isWallpaper ? '4K wallpaper complete' : 'Image complete';
   elements.renderMessage.textContent = isWallpaper
     ? '3840 × 2160 desktop wallpaper ready to download.'
     : 'Your image is ready.';
@@ -256,7 +307,8 @@ function showImageComplete() {
   elements.result.hidden = false;
   elements.videoPlayer.hidden = true;
   elements.imageResult.hidden = false;
-  elements.resultEyebrow.textContent = isWallpaper ? 'YOUR 4K WALLPAPER' : 'YOUR IMAGE';
+  elements.copyTask.hidden = true; // there is no task ID for images
+  elements.resultEyebrow.textContent = isWallpaper ? 'Your 4K wallpaper' : 'Your image';
   elements.resultTitle.textContent = isWallpaper ? 'Ready for your desktop.' : 'Ready to view.';
   elements.downloadLabel.textContent = isWallpaper ? '4K JPG' : 'Image';
   elements.downloadButton.href = elements.imageResult.src;
@@ -265,51 +317,34 @@ function showImageComplete() {
     isWallpaper ? 'promptforge-4k-wallpaper.jpg' : 'promptforge-image.jpg'
   );
   elements.taskIdLabel.textContent = isWallpaper
-    ? 'WALLPAPER / 3840 × 2160'
-    : 'IMAGE / GENERATED';
+    ? 'Wallpaper · 3840 × 2160'
+    : 'Generated image';
   elements.generateButton.disabled = false;
 }
 
 function showComplete(taskId) {
   elements.videoPlayer.hidden = false;
   elements.imageResult.hidden = true;
-  elements.resultEyebrow.textContent = 'YOUR VIDEO';
+  elements.copyTask.hidden = false;
+  elements.resultEyebrow.textContent = 'Your video';
   elements.resultTitle.textContent = 'Ready to play.';
   elements.downloadLabel.textContent = 'MP4';
   elements.statusTag.textContent = 'COMPLETE';
   elements.statusTag.dataset.state = 'COMPLETE';
   elements.renderTitle.textContent = 'Your film is ready.';
-  elements.renderEyebrow.textContent = 'GENERATION COMPLETE';
+  elements.renderEyebrow.textContent = 'Generation complete';
   elements.renderMessage.textContent = 'Your film is ready.';
   elements.progressFill.classList.remove('is-indeterminate');
   elements.progressFill.style.width = '100%';
   elements.progressLabel.textContent = '100%';
-  elements.taskIdLabel.textContent = `TASK / ${taskId}`;
+  elements.taskIdLabel.textContent = `Task ${taskId}`;
   elements.result.hidden = false;
+  elements.generateButton.disabled = false;
 
   const videoUrl = `/api/tasks/${encodeURIComponent(taskId)}/video`;
   elements.videoPlayer.src = videoUrl;
   elements.downloadButton.href = videoUrl;
   elements.downloadButton.setAttribute('download', `promptforge-${taskId}.mp4`);
-}
-
-async function retrieveVideo(taskId) {
-  try {
-    const response = await fetch(
-      `/api/tasks/${encodeURIComponent(taskId)}/video`,
-      { cache: 'no-store' }
-    );
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || 'The engine could not return the video file.');
-    }
-
-    return true;
-  } catch (error) {
-    showError(error.message);
-    return false;
-  }
 }
 
 async function pollTask(taskId, startedAt) {
@@ -363,7 +398,7 @@ async function generateImage() {
 
   elements.statusTag.textContent = 'PROCESSING';
   elements.statusTag.dataset.state = 'PROCESSING';
-  elements.renderEyebrow.textContent = isWallpaper ? '4K WALLPAPER' : 'IMAGE GENERATION';
+  elements.renderEyebrow.textContent = isWallpaper ? '4K wallpaper' : 'Image generation';
   elements.renderTitle.textContent = isWallpaper
     ? 'Creating your desktop wallpaper'
     : 'Creating your image';
@@ -422,20 +457,21 @@ async function generateVideo(event) {
     URL.revokeObjectURL(elements.imageResult.src);
   }
   elements.imageResult.removeAttribute('src');
-  elements.renderEyebrow.textContent = 'GENERATION';
+  elements.renderEyebrow.textContent = 'Generating';
   elements.renderTitle.textContent = 'Building your film';
   elements.statusTag.dataset.state = 'QUEUED';
   elements.statusTag.textContent = 'QUEUED';
   elements.renderMessage.textContent = 'Sending your brief to the engine…';
   elements.progressFill.classList.add('is-indeterminate');
   elements.progressFill.style.width = '';
-  elements.progressLabel.textContent = 'IN PROGRESS';
+  elements.progressLabel.textContent = 'In progress';
   elements.renderPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   try {
-    if (selectedCreationType() === 'image') {
+    // BUG FIX: this used to check only `=== 'image'`, so 4K Wallpaper mode fell
+    // through to the video endpoint and generated a video instead of an image.
+    if (isImageType()) {
       await generateImage();
-      elements.generateButton.disabled = false;
       return;
     }
 
@@ -454,12 +490,14 @@ async function generateVideo(event) {
     }
 
     activeTaskId = response.taskId;
-    elements.taskIdLabel.textContent = `TASK / ${activeTaskId}`;
+    elements.taskIdLabel.textContent = `Task ${activeTaskId}`;
     await pollTask(activeTaskId, Date.now());
   } catch (error) {
     showError(error.message);
   }
 }
+
+/* ---------- wiring ---------- */
 
 function initPromptControls() {
   elements.prompt.addEventListener('input', updateCharacterCount);
@@ -498,9 +536,9 @@ function initResultControls() {
 
     try {
       await navigator.clipboard.writeText(activeTaskId);
-      elements.copyTask.innerHTML = '<span aria-hidden="true">✓</span> Copied';
+      elements.copyTask.textContent = 'Copied ✓';
       window.setTimeout(() => {
-        elements.copyTask.innerHTML = '<span aria-hidden="true">▣</span> Copy task ID';
+        elements.copyTask.textContent = 'Copy task ID';
       }, 1600);
     } catch {
       elements.copyTask.textContent = activeTaskId;
@@ -508,24 +546,16 @@ function initResultControls() {
   });
 
   elements.videoPlayer.addEventListener('error', () => {
+    if (!elements.videoPlayer.getAttribute('src')) return; // ignore the reset between runs
     showError('The video was generated, but the browser could not load the finished MP4.');
   });
 
   elements.imageResult.addEventListener('error', () => {
+    if (!elements.imageResult.getAttribute('src')) return;
     showError('The image was generated, but the browser could not display the result.');
   });
-
-  elements.videoPlayer.addEventListener('loadedmetadata', () => {
-    const ratio = elements.videoPlayer.videoWidth / elements.videoPlayer.videoHeight;
-
-    if (ratio < 0.78) {
-      elements.videoFrame.style.aspectRatio = '9 / 16';
-    } else if (ratio > 1.25) {
-      elements.videoFrame.style.aspectRatio = '16 / 9';
-    } else {
-      elements.videoFrame.style.aspectRatio = '1 / 1';
-    }
-  });
+  // The old loadedmetadata aspect-ratio handler is gone: CSS now contains the
+  // media inside the stage and keeps its natural ratio.
 }
 
 initTheme();
