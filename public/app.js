@@ -250,14 +250,7 @@ async function pollTask(taskId, startedAt) {
     }
 
     if (task.status === 'COMPLETE') {
-      elements.renderTitle.textContent = 'Almost there.';
-      elements.renderMessage.textContent = 'Collecting your finished film…';
-
-      const videoReady = await retrieveVideo(taskId);
-
-      if (videoReady) {
-        showComplete(taskId);
-      }
+      showComplete(taskId);
       return;
     }
 
