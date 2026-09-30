@@ -563,13 +563,22 @@ app.post('/api/generate-image', async (req, res) => {
       throw error;
     }
 
-    const imageBase64 = providerBody.result?.image;
+    // Cloudflare's current FLUX.1 Schnell docs expose result.image,
+    // while the generic REST schema may expose the generated image directly
+    // as result. Accept both response shapes to keep the integration robust.
+    let imageBase64 = providerBody.result?.image;
+
+    if (!imageBase64 && typeof providerBody.result === 'string') {
+      imageBase64 = providerBody.result;
+    }
 
     if (typeof imageBase64 !== 'string' || !imageBase64) {
       const error = new Error('Cloudflare Workers AI returned no generated image.');
       error.status = 502;
       throw error;
     }
+
+    imageBase64 = imageBase64.replace(/^data:image\/[^;]+;base64,/, '');
 
     const input = Buffer.from(imageBase64, 'base64');
 
